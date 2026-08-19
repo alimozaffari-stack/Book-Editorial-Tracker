@@ -1,0 +1,42 @@
+Book Editorial Tracker v0.1.4 final automated verification
+Date: 2026-08-14 Australia/Sydney
+Baseline: 898b5204bd3749bb0ce11fdeaf7a5420aa74d6b1
+Branch: codex/desktop-collaboration
+
+1. Test discovery
+   Result: PASS
+   Evidence: 22 test files discovered; package.json npm test names all 22.
+
+2. cmd /c npm test
+   Result: PASS
+   Counts: 81 tests, 81 passed, 0 failed, 0 skipped.
+
+3. cmd /c npm run lint
+   Result: PASS
+   Evidence: TypeScript tsc --noEmit exit 0.
+
+4. node --check electron/main.cjs
+   Result: PASS
+
+5. node --check electron/preload.cjs
+   Result: PASS
+
+6. cmd /c npm run build
+   Result: PASS
+   Evidence: Vite 6.4.1 transformed 2,310 modules; dist/index.html built (2,460.20 kB; gzip 1,192.23 kB).
+   Note: executed outside the restricted sandbox after the sandbox denied Vite access to its workspace config.
+
+7. cmd /c npm run make
+   Result: PASS
+   Evidence: Electron Forge packaged win32/x64 and produced Squirrel artifacts under out/make.
+   Note: no installation or deployment occurred.
+
+8. git diff --check
+   Result: PASS
+   Note: Git printed LF-to-CRLF working-copy warnings; no whitespace errors were reported.
+
+Installer SHA-256: 993C24C1B67C5B44574D183C2A818201BD061B8DC33C7B7B3E2C2A41B63E6655
+NUPKG SHA-256: 2456B112186DA3B835BF2BEDB6EFC85C962FF05E248D05B68B29EBEAA118D954
+RELEASES SHA-256: 59A38FCCFC3947C25FD7AEF59B6651FE8490B45A4AC346F01F269A15561C043B
+
+External Task 7 gates remain pending explicit user approval.

@@ -1,0 +1,28 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('editorialTracker', {
+  saveLocalExport: (filename, contents) => ipcRenderer.invoke('save-local-export', { filename, contents }),
+  openFolderForFile: (filePath) => ipcRenderer.invoke('open-folder-for-file', filePath),
+  selectDocx: () => ipcRenderer.invoke('select-docx'),
+  scanProjectFolder: () => ipcRenderer.invoke('scan-project-folder'),
+  resumeProjectFolder: () => ipcRenderer.invoke('resume-project-folder'),
+  inspectProjectDocx: (relativePath) => ipcRenderer.invoke('inspect-project-docx', relativePath),
+  forgetProjectFolder: () => ipcRenderer.invoke('forget-project-folder'),
+  openStageSource: (request) => ipcRenderer.invoke('open-stage-source', request),
+  loadFirebaseProfile: () => ipcRenderer.invoke('load-firebase-profile'),
+  saveFirebaseProfile: (profile) => ipcRenderer.invoke('save-firebase-profile', profile),
+  clearFirebaseProfile: () => ipcRenderer.invoke('clear-firebase-profile'),
+  chooseProjectFile: () => ipcRenderer.invoke('choose-project-file'),
+  chooseSharedProjectFile: () => ipcRenderer.invoke('choose-shared-project-file'),
+  saveProjectFile: (fileToken, expectedHash, contents) => ipcRenderer.invoke('save-project-file', { fileToken, expectedHash, contents }),
+  saveProjectFileAs: (contents) => ipcRenderer.invoke('save-project-file-as', contents),
+  saveSharedProjectFile: (fileToken, instanceId, expectedHash, expectedProjectRevision, contents) => ipcRenderer.invoke('save-shared-project-file', { fileToken, instanceId, expectedHash, expectedProjectRevision, contents }),
+  saveSharedProjectFileAs: (contents) => ipcRenderer.invoke('save-shared-project-file-as', contents),
+  acquireSharedProjectLock: (fileToken, editorLabel, instanceId) => ipcRenderer.invoke('acquire-shared-project-lock', fileToken, editorLabel, instanceId),
+  heartbeatSharedProjectLock: (fileToken, instanceId) => ipcRenderer.invoke('heartbeat-shared-project-lock', fileToken, instanceId),
+  verifySharedProjectLock: (fileToken, instanceId) => ipcRenderer.invoke('verify-shared-project-lock', fileToken, instanceId),
+  releaseSharedProjectLock: (fileToken, instanceId) => ipcRenderer.invoke('release-shared-project-lock', fileToken, instanceId),
+  readSharedProjectLock: (fileToken) => ipcRenderer.invoke('read-shared-project-lock', fileToken),
+  forceUnlockSharedProjectLock: (fileToken, instanceId, confirmationText) => ipcRenderer.invoke('force-unlock-shared-project-lock', fileToken, instanceId, confirmationText),
+  sharedProjectLockHeartbeatMs: 60 * 1000,
+});

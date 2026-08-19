@@ -1,0 +1,108 @@
+category,name,status,environment,exit_code,path,sha256,details
+precondition,desktop-app-running,pass,restricted,0,,,No installed Book Editorial Tracker process was running at verification start.
+command,npm test,pass,restricted,0,,,162 passed; 0 failed; 6 suites; duration 3655.7707 ms.
+command,npm run lint,pass,restricted,0,,,tsc --noEmit.
+command,npm run build:team,fail,restricted,1,,,Cannot read directory ../../..: Access is denied; Could not resolve vite.config.ts.
+command,npm run build:team,pass,elevated,0,,,Built dist/index.html in 23.32s.
+command,npm run build:public,fail,restricted,1,,,Cannot read directory ../../..: Access is denied; Could not resolve vite.config.ts.
+command,npm run build:public,pass,elevated,0,,,Built dist/index.html in 23.30s.
+command,git diff --check,pass,restricted,0,,,CRLF working-copy warnings only; no diff content errors.
+scan,owner-project-id,pass,restricted,0,,,Public dist match count 0.
+scan,owner-api-key,pass,restricted,0,,,Public dist match count 0.
+scan,owner-email,pass,restricted,0,,,Public dist match count 0.
+scan,firebase-applet-config-json,pass,restricted,0,,,Public dist match count 0.
+artifact,public-dist-index,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\dist\index.html,8147C9A4A66372A7DDEED8290A4FC8E89460B2C027B5F3AE44A4397DAE9F427C,Fresh public build artifact.
+artifact,public-dist-mark,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\dist\editorial-review-tracker-mark.png,72FC59D55F0289C333FD658450DFA31A53508B8DD85F39EC8DE2F9DB9086C91C,Shared image asset in current dist output.
+manual-smoke,synthetic-local-and-shared-smoke,pending,,,,,Not genuinely performed in this run; pending.
+gate,external-approval-gate-a,pending,,,,,Do not package the public installer before owner approval.
+command,npm run make:public,fail,restricted,1,,,Electron Forge packaging failed with connect EACCES 4.237.22.38:443.
+command,npm run make:public,pass,elevated,0,,,Public installer artifacts written to out\\make.
+artifact,public-installer-setup,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\Book Editorial Tracker-0.1.5 Setup.exe,ACA8FFD1D34B7094EFAAD11A44498E6213E3C7B162EFE90BBA8471087D55BA46,Public setup installer.
+artifact,public-installer-full-nupkg,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\book_editorial_tracker-0.1.5-full.nupkg,2AEC776AEE7A3231C40DF96031C2DB00772008785ACEECC7B4168C7A0C669F7A,Public Squirrel full package.
+artifact,public-installer-releases,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\RELEASES,82A2FC03F71911A7068F006A8303DC044B7565B87E6D43C191BCCE5A45773702,Public Squirrel releases manifest.
+scan,packaged-firebase-applet-config-json,pass,restricted,0,,,Recursive out scan match count 0.
+gate,external-approval-gate-b,pending,,,,,Do not install the built public installer without owner approval.
+command,stage5-correction-focused-tests,pass,restricted,0,,,projectFileFormat/backendContract/rendererStartup: 19 passed; 0 failed.
+command,stage5-correction-forge-and-boundary-tests,pass,restricted,0,,,forgeConfig/publicPackageBoundary/publicPackageArchive all passed after refreshed public app.asar.
+command,stage5-correction-build-team,fail,restricted,1,,,Cannot read directory ../../..: Access is denied; Could not resolve vite.config.ts.
+command,stage5-correction-build-team,pass,elevated,0,,,Built dist/index.html after identical elevated rerun.
+command,stage5-correction-build-public,fail,restricted,1,,,Cannot read directory ../../..: Access is denied; Could not resolve vite.config.ts.
+command,stage5-correction-build-public,pass,elevated,0,,,Built dist/index.html after identical elevated rerun.
+command,stage5-correction-package-public-appasar,fail,restricted,1,,,electron-forge package blocked by connect EACCES 4.237.22.38:443.
+command,stage5-correction-package-public-appasar,pass,elevated,0,,,Refreshed unpackaged public app.asar only; no installer rebuild.
+scan,stage5-correction-owner-project-id,pass,restricted,0,,,Refreshed public app.asar match count 0.
+scan,stage5-correction-owner-api-key,pass,restricted,0,,,Refreshed public app.asar match count 0.
+scan,stage5-correction-owner-email,pass,restricted,0,,,Refreshed public app.asar match count 0.
+scan,stage5-correction-firebase-applet-config-json,pass,restricted,0,,,Refreshed public app.asar match count 0.
+artifact,public-installer-setup,superseded,,,,,Earlier installer artifact predates the final hostile-review fixes; do not treat its hash as current release evidence until a later approved installer rebuild.
+artifact,public-installer-full-nupkg,superseded,,,,,Earlier package artifact predates the final hostile-review fixes; no new installer hash recorded in this correction pass.
+manual-smoke,stage5-correction-manual-smoke,pending,,,,,Manual smoke remains pending; no pass claimed in this correction pass.
+command,corrected-public-make,fail,restricted,1,,,Electron Forge make failed with connect EACCES 4.237.22.38:443.
+command,corrected-public-make,pass,elevated,0,,,Corrected public installer artifacts written to out\\make.
+command,corrected-public-package-archive-test,pass,restricted,0,,,publicPackageArchive.test.mjs passed against the refreshed packaged public archive.
+artifact,corrected-public-installer-setup,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\Book Editorial Tracker-0.1.5 Setup.exe,9CC8BDF97C1C4D1F0A3A2A32D228098245268EB8382DAE52E2CF2EED5DE857E6,Corrected public setup installer.
+artifact,corrected-public-installer-full-nupkg,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\book_editorial_tracker-0.1.5-full.nupkg,43852E91C2424DCCE5EEF611F681E8EC7C26A87B485E1703225412FABCE1F0E3,Corrected public Squirrel full package.
+artifact,corrected-public-installer-releases,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\RELEASES,00C6A7E9EC1ED187A2541850B3041165290916F4662B6944676350317B001EC5,Corrected public Squirrel releases manifest.
+scan,corrected-public-appasar-owner-project-id,pass,restricted,0,,,Refreshed packaged public archive match count 0.
+scan,corrected-public-appasar-owner-api-key,pass,restricted,0,,,Refreshed packaged public archive match count 0.
+scan,corrected-public-appasar-owner-email,pass,restricted,0,,,Refreshed packaged public archive match count 0.
+scan,corrected-public-appasar-firebase-applet-config-json,pass,restricted,0,,,Refreshed packaged public archive match count 0.
+gate,installation-approval-gate,pending,,,,,Corrected public installer is built and awaits separate installation approval.
+release,public-beta-0.1.6-correction,planned,,,,,This corrective beta packages the Back to storage choices public-Firebase navigation fix and preserves existing storage behavior.
+command,storage-choice-correction-test,pass,restricted,0,,,3 passed; 0 failed; confirms Back to storage choices plus both helper-text renders.
+command,public-build-0.1.6,fail,restricted,1,,,Cannot read directory ../../..: Access is denied; Could not resolve vite.config.ts.
+command,public-build-0.1.6,pass,elevated,0,,,Built public dist for version 0.1.6 in 22.53s.
+command,public-make-0.1.6,fail,restricted,1,,,Electron Forge packaging failed with connect EACCES 4.237.22.38:443.
+command,public-make-0.1.6,pass,elevated,0,,,Created public 0.1.6 installer artifacts under out\\make.
+command,public-package-archive-test-0.1.6,pass,restricted,0,,,publicPackageArchive.test.mjs passed against the fresh packaged public archive.
+artifact,public-installer-setup-0.1.6,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\Book Editorial Tracker-0.1.6 Setup.exe,3F6B990E899187DD2FF1E9C63A44E22BDD0EB98FF5312DB01ABD17547C1C01C9,Corrective public beta setup installer with Back-to-storage fix.
+artifact,public-installer-full-nupkg-0.1.6,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\book_editorial_tracker-0.1.6-full.nupkg,3429D9B2F1EE821A19A185575833190D3B1F5A91BBE69D4ED2EBD8ECFCBF4F35,Corrective public beta Squirrel full package.
+artifact,public-installer-releases-0.1.6,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\RELEASES,EB8ACADC7EA7F45C23E8DEDC5008F9722117A9214D04800C63681BDF5B8BAD78,Corrective public beta Squirrel releases manifest.
+scan,public-appasar-owner-project-id-0.1.6,pass,restricted,0,,,Fresh packaged public archive match count 0.
+scan,public-appasar-owner-api-key-0.1.6,pass,restricted,0,,,Fresh packaged public archive match count 0.
+scan,public-appasar-owner-email-0.1.6,pass,restricted,0,,,Fresh packaged public archive match count 0.
+scan,public-appasar-firebase-applet-config-json-0.1.6,pass,restricted,0,,,Fresh packaged public archive match count 0.
+gate,installation-approval-gate-0.1.6,pending,,,,,Corrective public beta 0.1.6 is built and eligible for separate installation approval.
+release,public-beta-0.1.7-shared-lock-fix,planned,,,,,This corrective beta packages the local/shared lock fix so local-mode startup no longer invokes shared-lock release.
+command,storage-choice-test-0.1.7,pass,restricted,0,,,5 passed; 0 failed.
+command,portable-backend-suite-0.1.7,pass,restricted,0,,,23 passed; 0 failed.
+command,project-file-and-shared-lock-suite-0.1.7,pass,restricted,0,,,17 passed; 0 failed.
+command,npm-run-lint-0.1.7,pass,restricted,0,,,tsc --noEmit under version 0.1.7.
+command,git-diff-check-0.1.7,pass,restricted,0,,,CRLF working-copy warnings only; no diff content errors.
+command,public-build-0.1.7,fail,restricted,1,,,Cannot read directory ../../..: Access is denied; Could not resolve vite.config.ts.
+command,public-build-0.1.7,pass,elevated,0,,,Built public dist for version 0.1.7 in 18.51s.
+command,public-make-0.1.7,fail,restricted,1,,,Electron Forge packaging failed with connect EACCES 4.237.22.38:443.
+command,public-make-0.1.7,pass,elevated,0,,,Created public 0.1.7 installer artifacts under out\\make.
+command,public-package-archive-test-0.1.7,pass,restricted,0,,,publicPackageArchive.test.mjs passed against the fresh packaged public archive.
+artifact,public-installer-setup-0.1.7,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\Book Editorial Tracker-0.1.7 Setup.exe,DD0FA6B0D03C826941299E87E65B290029DC75853CD14E2250E1070218DBDEE8,Corrective public beta setup installer for local/shared lock fix.
+artifact,public-installer-full-nupkg-0.1.7,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\book_editorial_tracker-0.1.7-full.nupkg,F998A47A299F0F1FE3089F559DCE9B54491628A2731E7BC6C2C0428038BBE6EE,Corrective public beta Squirrel full package.
+artifact,public-installer-releases-0.1.7,exists,elevated,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\RELEASES,726996F9D53D37FA7016C9BACD25886DF5922704F2D2AFEBEFB3454AE01AD456,Corrective public beta Squirrel releases manifest.
+scan,public-appasar-owner-project-id-0.1.7,pass,restricted,0,,,Fresh packaged public archive match count 0.
+scan,public-appasar-owner-api-key-0.1.7,pass,restricted,0,,,Fresh packaged public archive match count 0.
+scan,public-appasar-owner-email-0.1.7,pass,restricted,0,,,Fresh packaged public archive match count 0.
+scan,public-appasar-firebase-applet-config-json-0.1.7,pass,restricted,0,,,Fresh packaged public archive match count 0.
+release,public-beta-0.1.9-correction,planned,,,,,This corrective beta fixes a false positive package archive test by correctly parsing the archive entries instead of performing raw string matches.
+command,forgeConfig-test-0.1.9-first,pass,restricted,0,,,8 passed; 0 failed.
+command,npm-run-lint-0.1.9-first,pass,restricted,0,,,tsc --noEmit under version 0.1.9.
+command,public-build-0.1.9-first,pass,restricted,0,,,Built public dist for version 0.1.9 without error.
+command,public-make-0.1.9-first,pass,restricted,0,,,Created public 0.1.9 installer artifacts under out\make without error.
+command,public-package-archive-test-0.1.9-first,fail,restricted,1,,,publicPackageArchive.test.mjs 1 failed — false positive raw text hit on forge.config.js source mention.
+command,npm-test-0.1.9-first,fail,restricted,1,,,1 failed (publicPackageArchive false positive).
+command,git-diff-check-0.1.9-first,pass,restricted,0,,,CRLF working-copy warnings only; no diff content errors.
+artifact,public-installer-setup-0.1.9-first,superseded,restricted,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\Book Editorial Tracker-0.1.9 Setup.exe,DC506711D1C367FA352D3E6B56EEAEEBEB056142A14072DA3672AF4AD3397486,Stale — superseded by final corrective pass below.
+artifact,public-installer-full-nupkg-0.1.9-first,superseded,restricted,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\book_editorial_tracker-0.1.9-full.nupkg,96D92E0F52F8A8E28F98815E93A64C85E8AA8C3A3BE31B62036E15AA3FDDC30B,Stale — superseded by final corrective pass below.
+artifact,public-installer-releases-0.1.9-first,superseded,restricted,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\RELEASES,C65FD33959A974ABE09BF6A6F043155B812341B0B2D0EC4C81AA72C698178699,Stale — superseded by final corrective pass below.
+release,public-beta-0.1.9-final,pass,,,,,Final corrective pass after archive-test fix. forge.config.js excludes itself and firebase.json; test uses listPackage() for archive-entry check.
+command,forgeConfig-archive-boundary-tests-0.1.9-final,pass,restricted,0,,,10 passed; 0 failed (forgeConfig + publicPackageArchive + publicPackageBoundary).
+command,npm-test-0.1.9-final,pass,restricted,0,,,179 passed; 0 failed.
+command,npm-run-lint-0.1.9-final,pass,restricted,0,,,tsc --noEmit under version 0.1.9.
+command,git-diff-check-0.1.9-final,pass,restricted,0,,,CRLF working-copy warnings only; no diff content errors.
+artifact,public-installer-setup-0.1.9-final,exists,restricted,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\Book Editorial Tracker-0.1.9 Setup.exe,012257ED6BE62CC1C7A138EBB98EBE185DB36A35FEFF85A8FD3632A06BF8CAF1,Verified final public beta setup installer.
+artifact,public-installer-full-nupkg-0.1.9-final,exists,restricted,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\book_editorial_tracker-0.1.9-full.nupkg,F6D326D1FC1EDB6613C34B719E4D36EA1F615389F0A16F2B0DB98D2A18635742,Verified final public beta Squirrel full package.
+artifact,public-installer-releases-0.1.9-final,exists,restricted,0,C:\Users\ali_m\Documents\ChatGPT\Book-Editorial-Tracker\out\make\squirrel.windows\x64\RELEASES,697381A8F50928FC182E6B7969C5AADF44A4AB924DE435BEA384D833DF84E8D8,Verified final public beta Squirrel releases manifest.
+scan,public-appasar-owner-project-id-0.1.9-final,pass,restricted,0,,,Fresh packaged public archive match count 0.
+scan,public-appasar-owner-api-key-0.1.9-final,pass,restricted,0,,,Fresh packaged public archive match count 0.
+scan,public-appasar-owner-email-0.1.9-final,pass,restricted,0,,,Fresh packaged public archive match count 0.
+scan,public-appasar-firebase-applet-config-json-0.1.9-final,pass,restricted,0,,,Archive entry count 0 (verified via listPackage()).
+scan,public-appasar-forge-config-js-0.1.9-final,pass,restricted,0,,,Archive entry count 0 (build-only file now excluded from packaged application).
+gate,installation-approval-gate-0.1.9-final,pending,,,,,Final public beta 0.1.9 is built and eligible for separate installation approval.

@@ -1,0 +1,25 @@
+id,area,requirement,current_evidence,result,next_gate
+V01,Tests,"Every discovered test file is in npm test","22 discovered test files; package.json names all 22",Pass,None
+V02,Tests,"Manual stage history survives general chapter saves","manualSubmissionIntegration plus chapterWrites regression tests pass",Pass,None
+V03,Writes,"Chapter create/update/delete/batch/import/stage/team changes are transactional with one activity event","chapterWrites.ts; projectImportPlan.ts; teamWrites.ts; activityLog.ts",Pass,Live rules and flow validation pending approval
+V04,Concurrency,"Stale saves/deletes/project imports fail without changing data","revision tests and transaction checks pass",Pass,Packaged multi-account flow pending approval
+V05,Progress,"One resolver drives current stage and latest manuscript word count","chapterProgress.ts consumed by Dashboard Tasks Chapters Abstracts Bios; focused tests pass",Pass,Packaged visual validation pending approval
+V06,Roles,"Administrator Editor Viewer policy is enforced in UI and draft rules","rolePolicy.ts; viewer controls hidden; roster reads gated; immutable events",Pass,Live rules deployment pending approval
+V07,Administration,"Self-lockout last-admin and five-member limits are protected","teamWrites transaction rechecks plus teamRoles tests",Pass,Disposable second-account flow pending approval
+V08,Activity,"Newest-first filters Load older Save As Open folder and persistent failure state","ActivityView.tsx; activityView.test.ts",Pass,Packaged visual validation pending approval
+V09,Chapter import,"CSV/JSON preview creates only missing valid chapters","chapterImportPlan.ts; backupImport.ts full normalization; import tests",Pass,Disposable mixed-CSV flow pending approval
+V10,Path safety,"Only HTTPS or project-relative references enter new data","projectReference.ts; UI/import guards; draft Firestore rules; tests",Pass,Live rules deployment pending approval
+V11,DOCX,"25 MiB file limit and streaming 10 MiB per-XML limit","Electron extension/size checks; boundedEntryBytes; docxInspection tests",Pass,Disposable DOCX flow pending approval
+V12,Stage history,"Seven stages details correction duplicate outcome void-with-reason and byte release","StageIntakeDialog.tsx; StageHistory.tsx; chapterWrites.ts; tests",Pass,Disposable Revision 02 flow pending approval
+V13,Project scan,"Metadata-only one chapter/stage level scan excludes links and report/app folders","electron/main.cjs; projectFolderScan tests",Pass,Real-folder preview requires separate approval
+V14,Project inspection,"Only explicitly selected DOCX files are inspected sequentially with cancel between files","BackupIntakeView.tsx; bounded inspector",Pass,Real DOCX inspection requires separate approval
+V15,Project apply,"Several histories per chapter apply in one revision-checked <=50-chapter transaction","applyProjectImport; 30-chapter/195000-word synthetic test",Pass,Production apply requires separate approval
+V16,Source custody,"Selected project root is read-only; reports use Save As; absolute root remains local userData preference","Electron IPC exposes only relative paths/metadata and has no source-tree write call",Pass,Real-folder unchanged check requires approval
+V17,Legacy retirement,"Drive JSON sync working-folder writer and old audit helper are removed","GDriveSyncView googleDrive WorkingFolderAudit auditEvents auditEngine removed; README updated",Pass,None
+V18,Authentication,"browserLocalPersistence initializes before App auth listener; clean roster is guided","firebase.ts and App.tsx",Pass,Restart validation pending approval
+V19,TypeScript,"npm run lint","tsc --noEmit exit 0 on 2026-08-13",Pass,None
+V20,Build,"npm run build","Vite 6.4.1 transformed 2310 modules and built dist/index.html exit 0 on 2026-08-14",Pass,None
+V21,Package,"npm run make","Electron Forge made v0.1.4 Squirrel artifacts under out/make exit 0",Pass,None
+V22,Diff hygiene,"git diff --check","Exit 0; only expected LF-to-CRLF warnings",Pass,None
+V23,Installer hash,"Book Editorial Tracker-0.1.4 Setup.exe","Regenerated 2026-08-14; SHA256 993C24C1B67C5B44574D183C2A818201BD061B8DC33C7B7B3E2C2A41B63E6655",Pass,None
+V24,External state,"Rules deployment real-folder inspection production import commit push install tag publish","Not performed",Pending,Explicit approval required at each plan gate

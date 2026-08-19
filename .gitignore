@@ -1,0 +1,21 @@
+node_modules/
+build/
+dist/
+out/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Local analysis and manuscript-audit outputs
+graphify-index-app/
+graphify-index-manuscript/
+docs/*-audit-manifest-generation.log
+docs/*-working-folder-discrepancy-report.md
+docs/*-working-folder-ledger.csv
+tokens.css
+
+out/
+
+evidence/

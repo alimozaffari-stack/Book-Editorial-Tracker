@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+.app-titlebar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  height: 32px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  -webkit-app-region: drag;
+}

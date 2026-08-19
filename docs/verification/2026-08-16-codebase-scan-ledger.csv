@@ -1,0 +1,10 @@
+area,status,evidence,next_action
+snapshot,pass,c4ec750 feat: snapshot reliability and intake improvements,Keep this local commit as the restore point; do not push it without separate approval.
+static_code_graph,pass,graphify-out/graph.json: 624 nodes; 1011 edges; 38 communities; no import cycles,Refresh with graphify update . after code changes.
+graph_integrity,warning,180 dangling static-analysis endpoints; 0 duplicate or collapsed endpoint pairs,Treat as graph coverage limitations and inspect only if a change touches the related files.
+current_validation,partial,npm run lint passed; build passed outside sandbox; npm test 101 passed and 3 failed because the running app held port 43119,Close the app and rerun tests only when a clean release verification is required.
+source_open_recovery,open,P1 review: stale selected project root prevents SHA-256 fallback in electron/main.cjs,Try hash-index lookup after a project-relative resolution failure.
+stage_record_rule_validation,open,P2 review: Firestore rules do not validate individual stage-record maps,Add bounded stage-record schema validation before any public release.
+project_help_setup,open,No Project & Help tab or new-project workflow exists,Implement Stage B Task 6 from the August 15 plan.
+administrator_reset,open,No reset/archive workflow exists,Implement Stage B Task 7 after backup guardrails are designed.
+public_storage_release,blocked,No backend contract or local/shared-folder backends; current Firebase configuration is owner-bound,Implement Stage C Tasks 8 through 10 and package a separate public edition.

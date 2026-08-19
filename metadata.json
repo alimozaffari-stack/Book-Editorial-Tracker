@@ -1,0 +1,5 @@
+{
+  "name": "Editorial Review Tracker",
+  "description": "An app to track and manage the progress of editing an academic volume, including chapter submissions, feedback, and Google Drive links.",
+  "requestFramePermissions": []
+}

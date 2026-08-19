@@ -1,0 +1,12 @@
+{
+  "projectId": "my-book-project",
+  "stages": [
+    {
+      "chapterId": "CH01",
+      "stage": "initial-submission",
+      "directory": "CH01/01_INITIAL_SUBMISSION",
+      "filenamePattern": "^CH01-v\\d+\\.docx$",
+      "versionPattern": "v(\\d+)"
+    }
+  ]
+}
