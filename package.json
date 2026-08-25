@@ -1,7 +1,7 @@
 {
   "name": "book-editorial-tracker",
   "private": true,
-  "version": "0.1.9",
+  "version": "0.2.0",
   "productName": "Book Editorial Tracker",
   "author": "Ali Mozaffari",
   "description": "A small-team desktop application for editorial review workflows.",

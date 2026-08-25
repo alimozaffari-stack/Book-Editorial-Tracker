@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 - 2026-08-24
+
+### Changed
+
+- Added `initial_chapter_submission` (Yes/No) and `initial_chapter_date` (YYYY-MM-DD) columns to the CSV chapter import template. Chapters with `initial_chapter_submission = Yes` now arrive at Initial Manuscript stage directly on import, and the abstract-submitted flag is implied automatically.
+- Fixed the Bio column in the Chapters table so that `Bio: Yes` and `Bio: No` display as a single inline badge rather than appearing split across two visual columns.
+
 ## 0.1.9 - 2026-08-19
 
 ### Changed

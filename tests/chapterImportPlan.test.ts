@@ -77,3 +77,16 @@ test('buildChapterImportPlan rejects a path-like ID before preview', () => {
   const plan = buildChapterImportPlan('chapter_id,title,contributor_name\nCH/01,Title,Author', []);
   assert.equal(plan.entries[0].disposition, 'invalid');
 });
+
+test('buildChapterImportPlan sets initialChapterSubmission and implies initialAbstractSubmitted when initial_chapter_submission is Yes', () => {
+  const csv = [
+    'chapter_id,title,contributor_name,initial_chapter_submission,initial_chapter_date',
+    'CH20,Title CH20,Contributor CH20,Yes,2026-05-01',
+  ].join('\n');
+  const plan = buildChapterImportPlan(csv, []);
+  const entry = plan.entries[0];
+  assert.equal(entry.disposition, 'new');
+  assert.equal(entry.incoming?.initialChapterSubmission, 'Yes');
+  assert.equal(entry.incoming?.initialAbstractSubmitted, 'Yes');
+  assert.equal(entry.incoming?.initialChapterDate, '2026-05-01');
+});

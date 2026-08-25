@@ -49,8 +49,11 @@ export function buildChapterImportPlan(csv: string, existing: Chapter[]): Chapte
         institutionalAffiliation: String(row.institutional_affiliation ?? ''),
         leadEditor: String(row.lead_editor ?? ''), folderUrl: String(row.folder_url ?? ''),
         submittedWordCount: String(row.word_count ?? ''), abstractText: String(row.abstract ?? ''), bioText: String(row.bio ?? ''),
+        initialChapterSubmission: String(row.initial_chapter_submission ?? '').trim().toLowerCase() === 'yes' ? 'Yes' : 'No',
+        initialChapterDate: String(row.initial_chapter_date ?? '').trim(),
       });
       if (incoming.abstractText) incoming.initialAbstractSubmitted = 'Yes';
+      if (incoming.initialChapterSubmission === 'Yes') incoming.initialAbstractSubmitted = 'Yes';
       entry.incoming = incoming;
       entry.existing = existing.find((chapter) => normalizeId(chapter.id) === normalizedId);
       entry.baselineRevision = entry.existing?.dataRevision ?? 0;

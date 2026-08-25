@@ -114,7 +114,7 @@ export function parseChapterCsv(csv: string): ChapterImportResult {
     if (!ids.has(id)) {
       ids.add(id);
     }
-    chapters.push(createChapter({
+    const chapter = createChapter({
       id,
       title,
       contributorName,
@@ -125,9 +125,13 @@ export function parseChapterCsv(csv: string): ChapterImportResult {
       submittedWordCount: field(row, 'word_count'),
       abstractText: field(row, 'abstract'),
       bioText: field(row, 'bio'),
-    }));
+      initialChapterSubmission: field(row, 'initial_chapter_submission').toLowerCase() === 'yes' ? 'Yes' : 'No',
+      initialChapterDate: field(row, 'initial_chapter_date'),
+    });
+    if (chapter.initialChapterSubmission === 'Yes') chapter.initialAbstractSubmitted = 'Yes';
+    chapters.push(chapter);
   });
   return { chapters, errors };
 }
 
-export const chapterCsvTemplate = 'chapter_id,title,contributor_name,contributor_email,institutional_affiliation,lead_editor,folder_url,word_count,abstract,bio\nCH14,Chapter title,Contributor name,email@example.com,University,Lead editor,https://drive.google.com/,0,Chapter abstract,Biographical statement\n';
+export const chapterCsvTemplate = 'chapter_id,title,contributor_name,contributor_email,institutional_affiliation,lead_editor,folder_url,word_count,abstract,bio,initial_chapter_submission,initial_chapter_date\nCH14,Chapter title,Contributor name,email@example.com,University,Lead editor,https://drive.google.com/,0,Chapter abstract,Biographical statement,No,\n';

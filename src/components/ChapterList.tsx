@@ -414,8 +414,8 @@ function StatusBadge({ label, status }: { label: string; status: string }) {
   if (isNo) colorClass = "bg-rose-100 text-rose-700";
 
   return (
-    <div className="flex items-center justify-between text-xs w-32">
-      <span className="text-gray-500 truncate mr-2">{label}:</span>
+    <div className="flex items-center gap-1.5 text-xs">
+      <span className="text-gray-500">{label}:</span>
       <span
         className={`px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${colorClass}`}
       >

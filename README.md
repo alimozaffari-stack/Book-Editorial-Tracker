@@ -1,6 +1,6 @@
 # Book Editorial Tracker
 
-Book Editorial Tracker is a Windows desktop application for tracking chapter metadata, editorial workflow status, stage records, reviews, and audit history for a book or edited volume. The current public beta is an Electron application for Windows. Version 0.1.9 is the current release version in this repository.
+Book Editorial Tracker is a Windows desktop application for tracking chapter metadata, editorial workflow status, stage records, reviews, and audit history for a book or edited volume. The current public beta is an Electron application for Windows. Version 0.2.0 is the current release version in this repository.
 
 This installer is a public beta, not a production release. It contains no owner Firebase configuration.
 
