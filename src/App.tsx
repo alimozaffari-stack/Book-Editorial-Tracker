@@ -43,6 +43,9 @@ function AppContent() {
   const [storageKind, setStorageKind] = useState<BackendKind | null>(null);
   const [localEditorLabel, setLocalEditorLabel] = useState('');
   const [backend, setBackend] = useState<TrackerBackend | null>(null);
+  const backendRef = useRef(backend);
+  useEffect(() => { backendRef.current = backend; }, [backend]);
+
   const [projectRevision, setProjectRevision] = useState(0);
 
   const [setupMessage, setSetupMessage] = useState('');
@@ -88,8 +91,8 @@ function AppContent() {
     setSharedProjectCanEdit(false);
     setLocalSaveNeedsCopy(false);
     setRuntimeError(message);
-    if (backend instanceof SharedFolderTrackerBackend) {
-      backend.setCanEdit(false, message);
+    if (backendRef.current instanceof SharedFolderTrackerBackend) {
+      backendRef.current.setCanEdit(false, message);
     }
   };
 
@@ -330,8 +333,10 @@ function AppContent() {
     if (!project || !backend) return;
     try {
       const input = { name: nextProjectName, expectedRevision: projectRevision };
-      await backend.resetProjectWithAudit(input, actorLabel);
+      const result = await backend.resetProjectWithAudit(input, actorLabel);
+      setProject(result.project);
       setProjectSetupFocus(null);
+      return result.project;
     } catch (error) {
       if (isFileProjectStaleSave(error)) {
         setLocalSaveNeedsCopy(true);

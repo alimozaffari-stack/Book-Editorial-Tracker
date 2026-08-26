@@ -1,0 +1,19 @@
+Please resolve the following 9 architectural and resilience issues across the project:
+
+1. Shared Lock Lifecycle:
+   - In `electron/main.cjs` / preload, ensure window close triggers synchronous lock release so unmount cleanup never skips releasing the shared lock.
+   - In the renderer heartbeat `useEffect`, use a `useRef` for the active `backend` reference to prevent stale closure captures.
+   - Ensure the lock resolution workflow passes the lock decision directly as a parameter rather than reading stale state for the shared read-only fallback.
+
+2. Permissions & State Reset:
+   - Remove legacy `isAdmin` guards from project setup, imports, and reset workflows so local/shared file mode is fully operational.
+   - Update `handleStartNewProject` to return and apply the fresh initial `ProjectState` immediately.
+
+3. Compiler Hardening:
+   - Add size and chapter-count limit guards to `src/domain/manuscriptCompiler.ts` to prevent memory exhaustion on oversized inputs.
+   - Wrap `shell.showItemInFolder` / file-reveal IPC handlers in a `try/catch` with graceful failure feedback.
+
+4. UI & Copy Cleanup:
+   - Update `src/components/ProjectHelpView.tsx` to remove all references to Firebase, cloud roles, and Google logins, updating text strictly to Local and Shared-folder file locking.
+
+Run `npm test` and `npm run build` after changes to verify all 134+ tests pass.

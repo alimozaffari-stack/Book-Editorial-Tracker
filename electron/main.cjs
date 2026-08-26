@@ -196,8 +196,15 @@ ipcMain.handle('save-local-export', async (_event, payload) => {
 });
 
 ipcMain.handle('open-folder-for-file', async (_event, filePath) => {
-  if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) throw new Error('Invalid local file path.');
-  shell.showItemInFolder(filePath);
+  if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) {
+    throw new Error('Invalid local file path.');
+  }
+  try {
+    shell.showItemInFolder(filePath);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Could not open folder.' };
+  }
 });
 
 ipcMain.handle('select-docx', async () => {

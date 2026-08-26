@@ -37,4 +37,16 @@ test('builds a naturally ordered request and omits chapters without matching sou
   assert.deepEqual(request.chapters.map(item => item.id), ['CH02', 'CH10']);
   assert.equal(request.chapters[0].abstractText, 'Abstract CH02');
   assert.equal(request.chapters[0].contributorName, undefined);
+
+test('enforces compilation limits', () => {
+  const lotsOfChapters = Array.from({ length: 101 }, (_, i) => chapter(`CH${i}`, [record('s', 'revision', '2026-01-01')]));
+  assert.throws(() => buildCompileManuscriptRequest(lotsOfChapters, 'Book', 'docx', new Set(['revision']), true, false), /Maximum compiler limit is 100 chapters/);
+
+  const bigAbstractChapters = [
+    chapter('CH01', [record('s', 'revision', '2026-01-01')]),
+  ];
+  bigAbstractChapters[0].abstractText = 'a'.repeat(500001);
+  assert.throws(() => buildCompileManuscriptRequest(bigAbstractChapters, 'Book', 'docx', new Set(['revision']), true, false), /Aggregate abstract length exceeds 500,000 characters limit/);
+});
+
 });

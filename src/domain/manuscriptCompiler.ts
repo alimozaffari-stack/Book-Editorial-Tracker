@@ -52,6 +52,10 @@ export function buildCompileManuscriptRequest(
   includeAbstracts: boolean,
   includeMetadata: boolean,
 ): CompileManuscriptRequest {
+  const totalAbstractLength = chapters.reduce((acc, c) => acc + (c.abstractText?.length || 0), 0);
+  if (chapters.length > 100) throw new Error('Maximum compiler limit is 100 chapters.');
+  if (totalAbstractLength > 500000) throw new Error('Aggregate abstract length exceeds 500,000 characters limit.');
+
   return {
     format,
     projectName,
