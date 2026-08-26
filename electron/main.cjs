@@ -3,7 +3,6 @@ const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const { startLocalAppServer } = require('./local-server.cjs');
-const { isFirebaseAuthPopup } = require('./url-policy.cjs');
 const { isPathInsideResolvedRoot } = require('./project-path-policy.cjs');
 const {
   resolveStageSourceFile,
@@ -99,11 +98,6 @@ function readPackagedTeamFirebaseProfile() {
   }
 }
 
-let allowedFirebaseAuthDomain = null;
-
-function refreshAllowedFirebaseAuthDomain() {
-  allowedFirebaseAuthDomain = readPackagedTeamFirebaseProfile()?.authDomain ?? readFirebaseProfile()?.authDomain ?? null;
-}
 
 ipcMain.handle('load-firebase-profile', async () => {
   return { ok: true, profile: readFirebaseProfile() };
@@ -117,7 +111,6 @@ ipcMain.handle('save-firebase-profile', async (_event, profile) => {
   const filePath = firebaseProfilePath();
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(parsed), 'utf8');
-  allowedFirebaseAuthDomain = parsed.authDomain;
   return { ok: true, profile: parsed };
 });
 
@@ -127,7 +120,6 @@ ipcMain.handle('clear-firebase-profile', async () => {
   } catch (error) {
     if (error?.code !== 'ENOENT') return { ok: false, message: 'Could not clear Firebase profile.' };
   }
-  refreshAllowedFirebaseAuthDomain();
   return { ok: true };
 });
 
@@ -502,10 +494,6 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
     },
   });
     window.webContents.setWindowOpenHandler(({ url }) => {
-    if (isFirebaseAuthPopup(url, allowedFirebaseAuthDomain)) {
-      log(`oauth_popup_allowed origin=${new URL(url).origin}`);
-      return { action: 'allow' };
-    }
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
@@ -556,7 +544,6 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
     });
 
     app.whenReady().then(() => {
-      refreshAllowedFirebaseAuthDomain();
       Menu.setApplicationMenu(null);
       createWindow();
       app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
