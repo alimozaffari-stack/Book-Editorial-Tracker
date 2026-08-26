@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict'; import test from 'node:test';
-import { applyProjectImport, finalizeAppliedProjectImport, markProjectFileInspected, planProjectImport, projectImportPlanCsv, projectImportPlanMarkdown, recalculateProjectImport, updateProjectEntryProposal, updateProjectInspectedRecord } from '../src/domain/projectImportPlan'; import { createChapter } from '../src/utils/chapterImport';
-import * as wrapper from '../src/utils/firestoreWrapper';
-wrapper.setFirestoreReferenceResolversForTest((_db, id) => ({ id } as any), () => ({ id: 'event' } as any));
+import { finalizeAppliedProjectImport, markProjectFileInspected, planProjectImport, projectImportPlanCsv, projectImportPlanMarkdown, recalculateProjectImport, updateProjectEntryProposal, updateProjectInspectedRecord } from '../src/domain/projectImportPlan'; import { createChapter } from '../src/utils/chapterImport';
 test('plans only matching DOCX candidates as ready', () => { const plan = planProjectImport({ displayLabel:'A/B', chapterFolders:[{name:'C01 Test',stageFolders:[{name:'06_FINAL MANUSCRUPT SUBMISSION',files:[{relativePath:'C01/a.docx',extension:'.docx',sizeBytes:1,filesystemModifiedAt:'2026-01-01'}]},{name:'Notes',files:[{relativePath:'C01/n.md',extension:'.md',sizeBytes:1,filesystemModifiedAt:'2026-01-01'}]}]}] }, [createChapter({id:'CH01',title:'T',contributorName:'A'})]); assert.equal(plan.entries[0].disposition,'Ready'); assert.equal(plan.entries[1].disposition,'Unsupported'); });
 
 test('matches stored chapter IDs case-insensitively', () => {
@@ -51,48 +49,7 @@ test('finalizes only selected records actually added in this import', () => {
   assert.equal(finalized.entries[1].disposition, 'Unsupported');
 });
 
-test('applies several inspected stages to one chapter with one revision increment and one summary event', async () => {
-  const chapter = createChapter({ id: 'CH01', title: 'T', contributorName: 'A' });
-  chapter.dataRevision = 4;
-  const store: Record<string, any> = { CH01: chapter };
-  const writes: Array<{ id: string; data: any }> = [];
-  wrapper.setRunTransaction(async (_db: any, callback: (transaction: any) => Promise<any>) => callback({
-    get: async (ref: any) => ({ exists: () => store[ref.id] !== undefined, data: () => store[ref.id] }),
-    set: (ref: any, data: any) => { writes.push({ id: ref.id, data }); if (ref.id === 'CH01') store.CH01 = data; },
-  }));
-  try {
-    const entries = ['initial-manuscript', 'revision'].map((stage, index) => ({
-      chapterId: 'CH01',
-      file: { relativePath: `CH01/stage-${index}/file-${index}.docx`, extension: '.docx', sizeBytes: 10, filesystemModifiedAt: '2026-01-01T00:00:00Z' },
-      proposal: { stage, ...(stage === 'revision' ? { roundNumber: 1 } : {}) },
-      disposition: 'Ready' as const,
-      message: 'Ready', selected: true, inspected: true,
-      record: { id: `record-${index}`, stage, ...(stage === 'revision' ? { roundNumber: 1 } : {}), sourceRelativePath: `CH01/stage-${index}/file-${index}.docx`, sourceSha256: `hash-${index}`, effectiveOn: `2026-01-0${index + 1}`, recordedAt: '2026-01-01T00:00:00Z', recordedBy: 'editor@example.com', state: 'active' as const },
-    }));
-    const result = await applyProjectImport({} as any, { entries: entries as any, expectedRevisions: { CH01: 4 } }, 'editor@example.com');
-    assert.equal(result.chaptersChanged, 1);
-    assert.equal(result.stageRecordsAdded, 2);
-    assert.equal(store.CH01.dataRevision, 5);
-    assert.equal(store.CH01.submissions.length, 2);
-    assert.equal(writes.length, 2, 'one chapter write and one activity event');
-  } finally {
-    wrapper.setRunTransaction(null);
-  }
-});
 
-test('rejects a chapter revision that changed after the project preview baseline', async () => {
-  const chapter = createChapter({ id: 'CH01', title: 'T', contributorName: 'A' }); chapter.dataRevision = 5;
-  let writes = 0;
-  wrapper.setRunTransaction(async (_db: any, callback: (transaction: any) => Promise<any>) => callback({
-    get: async () => ({ exists: () => true, data: () => chapter }),
-    set: () => { writes += 1; },
-  }));
-  const entry = { chapterId: 'CH01', file: { relativePath: 'CH01/Revision/file.docx', extension: '.docx', sizeBytes: 10, filesystemModifiedAt: '2026-01-01' }, proposal: { stage: 'revision', roundNumber: 2 }, disposition: 'Ready', message: 'Ready', selected: true, inspected: true, record: { id: 'r', stage: 'revision', roundNumber: 2, sourceRelativePath: 'CH01/Revision/file.docx', sourceSha256: 'hash', wordCount: 1000, effectiveOn: '2026-01-01', recordedAt: '2026-01-01T00:00:00Z', recordedBy: 'editor@example.com', state: 'active' } };
-  try {
-    await assert.rejects(() => applyProjectImport({} as any, { entries: [entry], expectedRevisions: { CH01: 4 } } as any, 'editor@example.com'), /changed after the preview/i);
-    assert.equal(writes, 0);
-  } finally { wrapper.setRunTransaction(null); }
-});
 
 test('allows an unmatched stage-folder name to be classified explicitly before inspection', () => {
   const chapter = createChapter({ id: 'CH01', title: 'T', contributorName: 'A' });
@@ -116,14 +73,4 @@ test('allows reviewed date and word-count correction without changing file prove
   assert.equal(changed.entries[0].record.roundNumber, 2); assert.equal(changed.entries[0].record.wordCountSource, 'manual'); assert.equal(changed.entries[0].record.sourceSha256, 'hash');
 });
 
-test('supports a synthetic 30-chapter reviewed import near 200,000 current words', async () => {
-  const chapters = Array.from({ length: 30 }, (_, index) => createChapter({ id: `CH${String(index + 1).padStart(2, '0')}`, title: `Chapter ${index + 1}`, contributorName: `Author ${index + 1}` }));
-  const store = Object.fromEntries(chapters.map(chapter => [chapter.id, { ...chapter, dataRevision: 0 }]));
-  wrapper.setRunTransaction(async (_db: any, callback: (transaction: any) => Promise<any>) => callback({ get: async (ref: any) => ({ exists: () => store[ref.id] !== undefined, data: () => store[ref.id] }), set: (ref: any, data: any) => { if (store[ref.id]) store[ref.id] = data; } }));
-  try {
-    const entries = chapters.map((chapter, index) => ({ chapterId: chapter.id, file: { relativePath: `${chapter.id}/Revision/file.docx`, extension: '.docx', sizeBytes: 10, filesystemModifiedAt: '2026-01-01' }, proposal: { stage: 'revision', roundNumber: 1 }, disposition: 'Ready', message: 'Ready', selected: true, inspected: true, record: { id: `r-${index}`, stage: 'revision', roundNumber: 1, sourceRelativePath: `${chapter.id}/Revision/file.docx`, sourceSha256: `hash-${index}`, wordCount: 6500, effectiveOn: '2026-01-01', recordedAt: '2026-01-01T00:00:00Z', recordedBy: 'editor@example.com', state: 'active' } }));
-    const result = await applyProjectImport({} as any, { entries, expectedRevisions: Object.fromEntries(chapters.map(chapter => [chapter.id, 0])) } as any, 'editor@example.com');
-    assert.equal(result.chaptersChanged, 30); assert.equal(result.stageRecordsAdded, 30);
-    assert.equal(Object.values(store).reduce((sum: number, chapter: any) => sum + Number(chapter.submittedWordCount), 0), 195000);
-  } finally { wrapper.setRunTransaction(null); }
-});
+

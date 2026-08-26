@@ -110,6 +110,19 @@ export interface ProjectState {
   updatedAt: string;
 }
 
+export type WriteResult =
+  | { kind: 'ok'; new: Chapter }
+  | { kind: 'duplicate'; current: Chapter }
+  | { kind: 'stage-conflict'; current: Chapter; conflictingRecords: ChapterStageRecord[] }
+  | { kind: 'unchanged'; current: Chapter }
+  | { kind: 'conflict'; current: Chapter };
+
+export interface ReviewedResetInput {
+  name: string;
+  expectedRevision: number;
+}
+
+
 export interface ActiveStageConflict {
   rank: number;
   stageLabel: string;

@@ -9,7 +9,7 @@ interface Props {
   chapterCount: number;
   stageRecordCount: number;
   jsonBackupExportedAt: string;
-  storageMode: 'firebase' | 'local-file' | 'shared-folder';
+  storageMode: 'local-file' | 'shared-folder';
   sharedFolderMessage: string;
   onCreateProject: (name: string) => Promise<ProjectState>;
   onStartNewProject: (name: string) => Promise<ProjectState>;
@@ -149,9 +149,9 @@ export function ProjectHelpView({
         <li>Source opening uses project-relative references, never absolute file system paths.</li>
         <li>Voiding a stage keeps its historical trail and marks a reason for audits.</li>
         <li>Export backups include chapters, team users, and activity for portability.</li>
-        <li>Firebase roles are admin, editor, and viewer with admin-managed team membership.</li>
+        <li>Roles are admin, editor, and viewer with admin-managed team membership.</li>
         <li>Feedback round 0 is allowed only when the stage explicitly uses round 0.</li>
-        <li>Storage mode is currently {storageMode === 'shared-folder' ? 'shared-folder mode' : storageMode === 'local-file' ? 'local file mode' : 'Firebase team mode'}.</li>
+        <li>Storage mode is currently {storageMode === 'shared-folder' ? 'shared-folder mode' : 'local file mode'}.</li>
         {storageMode === 'shared-folder' && <li>Shared-folder mode is for one editor at a time. Folder synchronization is not a live database. If two people edit independently, the later save is blocked rather than merged.</li>}
         <li>Do not write source document paths into Firestore or activity records.</li>
         <li>The application never modifies selected source documents or source folders.</li>

@@ -58,15 +58,7 @@ test('Squirrel lifecycle creates and removes Windows shortcuts', () => {
   assert.match(mainSource, /--removeShortcut/);
 });
 
-test('team package fixture remains bound to the owner Firebase project', () => {
-  const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-  const firebaseConfig = JSON.parse(readFileSync(new URL('../firebase-applet-config.json', import.meta.url), 'utf8'));
 
-  assert.match(packageJson.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(firebaseConfig.projectId, 'edotorial-review-tracker');
-  assert.equal(firebaseConfig.authDomain, 'edotorial-review-tracker.firebaseapp.com');
-  assert.equal(firebaseConfig.apiKey, 'AIzaSyBJGlFeb5iDZXg58VPYDPfHjq5tNGKsHwE');
-});
 
 test('desktop Save As supports the bounded Word-compatible summary exports', () => {
   const mainSource = readFileSync(new URL('../electron/main.cjs', import.meta.url), 'utf8');

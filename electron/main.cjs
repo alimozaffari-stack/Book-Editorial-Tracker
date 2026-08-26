@@ -11,6 +11,12 @@ const {
 } = require('./stage-source-policy.cjs');
 const { createProjectFilePolicy } = require('./project-file-policy.cjs');
 const { createSharedProjectLockPolicy } = require('./shared-project-lock.cjs');
+const {
+  buildDocx,
+  buildSourceArchive,
+  extractDocxText,
+  markdownForSections,
+} = require('./manuscript-compiler.cjs');
 
 function firebaseProfilePath() {
   return path.join(app.getPath('userData'), 'firebase-profile.json');
@@ -349,6 +355,85 @@ ipcMain.handle('open-stage-source', async (_event, request) => {
       ok: false,
       message: 'An unexpected error occurred while opening the document'
     };
+  }
+});
+
+const compilerFormats = {
+  md: { extension: 'md', name: 'Markdown document' },
+  docx: { extension: 'docx', name: 'Word document' },
+  zip: { extension: 'zip', name: 'ZIP archive' },
+};
+const compilerStages = new Set(['abstract', 'initial-manuscript', 'feedback-sent', 'revision', 'final-manuscript', 'publisher-submission', 'typeset-submission']);
+
+function compilerText(value, maxLength) {
+  return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
+
+function compilerFileName(projectName, extension) {
+  const stem = compilerText(projectName, 100).replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'compiled-manuscript';
+  return `${stem}.${extension}`;
+}
+
+ipcMain.handle('compile-manuscript', async (_event, request) => {
+  try {
+    const format = compilerFormats[request?.format];
+    if (!format || !Array.isArray(request?.chapters) || request.chapters.length === 0 || request.chapters.length > 1000) {
+      throw new Error('The manuscript compiler request is invalid.');
+    }
+    const options = { includeAbstracts: request.includeAbstracts === true, includeMetadata: request.includeMetadata === true };
+    const sections = [];
+    const sources = [];
+    for (const chapter of request.chapters) {
+      const source = chapter?.source;
+      if (!compilerText(chapter?.id, 100) || !compilerText(chapter?.title, 500) || !compilerStages.has(source?.stage)) {
+        throw new Error('A chapter in the manuscript compiler request is invalid.');
+      }
+      const resolved = await resolveStageSourceFile({
+        sourceRelativePath: source.sourceRelativePath,
+        sourceSha256: source.sourceSha256,
+        selectedProjectRoot,
+        indexPath: stageDocumentIndexPath(),
+      });
+      if (!resolved.ok) throw new Error(`${chapter.id}: ${resolved.message}`);
+      const bytes = fs.readFileSync(resolved.filePath);
+      const section = {
+        id: compilerText(chapter.id, 100),
+        title: compilerText(chapter.title, 500),
+        contributorName: compilerText(chapter.contributorName, 300),
+        contributorEmail: compilerText(chapter.contributorEmail, 320),
+        institutionalAffiliation: compilerText(chapter.institutionalAffiliation, 500),
+        abstractText: compilerText(chapter.abstractText, 100000),
+        stage: source.stage,
+        roundNumber: Number.isInteger(source.roundNumber) ? source.roundNumber : undefined,
+        stageLabel: source.stage === 'revision'
+          ? `Revision ${String(source.roundNumber ?? 1).padStart(2, '0')}`
+          : source.stage.replace(/-/g, ' ').replace(/^./, character => character.toUpperCase()),
+        effectiveOn: compilerText(source.effectiveOn, 10),
+        paragraphs: request.format === 'zip' ? [] : await extractDocxText(bytes),
+      };
+      sections.push(section);
+      sources.push({ section, sourceFileName: source.sourceFileName || path.basename(resolved.filePath), bytes });
+    }
+    const projectName = compilerText(request.projectName, 500) || 'Compiled manuscript';
+    const output = request.format === 'md'
+      ? Buffer.from(markdownForSections(projectName, sections, options), 'utf8')
+      : request.format === 'docx'
+        ? await buildDocx(projectName, sections, options)
+        : await buildSourceArchive(projectName, sources, options);
+    const result = await dialog.showSaveDialog({
+      title: 'Save compiled manuscript',
+      defaultPath: path.join(app.getPath('documents'), compilerFileName(projectName, format.extension)),
+      filters: [{ name: format.name, extensions: [format.extension] }],
+    });
+    if (result.canceled || !result.filePath) return { cancelled: true, includedChapters: sections.length };
+    if (selectedProjectRoot && isPathInsideResolvedRoot(selectedProjectRoot, result.filePath)) {
+      throw new Error('Choose a Save As destination outside the selected project folder.');
+    }
+    fs.writeFileSync(result.filePath, output);
+    return { cancelled: false, filePath: result.filePath, includedChapters: sections.length };
+  } catch (error) {
+    console.error('Manuscript compilation failed:', error?.message || error);
+    throw new Error(error instanceof Error ? error.message : 'The manuscript could not be compiled.');
   }
 });
 

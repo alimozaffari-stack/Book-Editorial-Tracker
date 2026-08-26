@@ -1,0 +1,101 @@
+Context reconstructed. Summary below — a continuation note for the session so far.
+
+
+
+---
+
+
+
+# Session Continuation Note — Book Editorial Tracker
+
+
+
+## Project state
+
+- **Repo**: `d:\Apps\Book-Editorial-Tracker` — Electron + React + Vite + Firebase app (v0.2.0, `productName: Book Editorial Tracker`).
+
+- **Git**: clean working tree on `main`. Two branches of note:
+
+  - `origin/main` HEAD = `7ce80bc` — **"Issue Identified & Fixed"** (2026-08-25), the current tip.
+
+  - `origin/post-release-fixes` = `8355e3c` — **"Release 0.1.9"**.
+
+- **No files modified so far** in this session — read-only investigation only.
+
+
+
+## What the last commit (`7ce80bc`) did
+
+Root cause of the broken installer: the prior bundle was built with the **private `team` variant** (locked to the private Firebase login screen) instead of the **public `public` variant** (which shows the "Choose storage" chooser: Local project file / Shared folder / Firebase team).
+
+
+
+Reverted/changed in this commit:
+
+1. **`src/components/ChapterList.tsx`** — `StatusBadge` now uses `flex items-center gap-1.5` instead of a fixed `w-32` flex row with truncation; label no longer truncated (untruncated status labels).
+
+2. **`src/domain/chapterImportPlan.ts` / `src/utils/chapterImport.ts`** — CSV import now maps two new columns onto the `Chapter` shape:
+
+   - `initial_chapter_submission` → `initialChapterSubmission` (`'Yes'` if trimmed/lowercased value is `'yes'`, else `'No'`).
+
+   - `initial_chapter_date` → `initialChapterDate` (trimmed).
+
+   - Setting `initialChapterSubmission === 'Yes'` also forces `initialAbstractSubmitted = 'Yes'`.
+
+3. **`CHANGELOG.md` / `README.md`** — version aligned to **0.2.0**.
+
+4. **`.kilo/kilo.json`** — new Kilo project config.
+
+5. **`bun.lock`, `package.json`** — dependency/version updates.
+
+
+
+## Command notes (Windows/PowerShell gotcha)
+
+`git --no-pager diff` piped through `Select-Object` in this shell **fails to capture output** ("output could not be captured through shell integration") with the given `git -C ... diff ... | Select-Object` invocation tested earlier; read full `git show` output or use a file redirect if needed again.
+
+
+
+## Files read this session
+
+- `src/App.tsx` (lines 82–300 region)
+
+- `src/main.tsx`, `src/rendererStartup.ts`, `src/types.ts` (from prior context)
+
+- `package.json`, `README.md` (head), `CHANGELOG.md` (head), `.kilo/kilo.json`
+
+- `src/utils/chapterImport.ts`, `src/domain/chapterImportPlan.ts`
+
+
+
+## Probable open threads (unverified)
+
+- Whether the **public variant** (`npm run build:public` + `npm run make:public`) has actually been verified end-to-end after the fix, and whether the packaged release was re-run since the `7ce80bc` fixes.
+
+- Whether `initial_chapter_submission`/`initial_chapter_date` CSV columns need documenting (sample CSV header, template).
+
+- Test files for the import changes: `tests/chapterImport.test.ts`, `tests/chapterImportPlan.test.ts` were updated in this commit — likely the place to extend if more CSV edge cases surface.
+
+
+
+## Commands to resume with (read-only)
+
+```powershell
+
+git -C "d:\Apps\Book-Editorial-Tracker" --no-pager status --short
+
+git -C "d:\Apps\Book-Editorial-Tracker" --no-pager log --oneline -5
+
+npm test            # from repo root (uses `node --import tsx --test tests/...`)
+
+```
+
+
+
+If you paste the actual coding-session log (or its path) I'll fold this into a proper continuation note tied to your exact session. What do you want to work on next:
+
+1. Verify the public build/package pipeline
+
+2. Extend CSV import tests/docs for the two new fields
+
+3. Something else (paste it)

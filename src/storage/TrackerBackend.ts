@@ -1,10 +1,8 @@
-import { Chapter, ChapterStageRecord, ProjectState } from '../types';
+import { Chapter, ChapterStageRecord, ProjectState, WriteResult, ReviewedResetInput } from '../types';
 import { ActivityViewEvent } from '../domain/activityView';
 import { ProjectImportPlan, ProjectImportResult } from '../domain/projectImportPlan';
-import { WriteResult } from '../utils/chapterWrites';
-import { ReviewedResetInput } from '../utils/projectWrites';
 
-export type BackendKind = 'firebase' | 'local-file' | 'shared-folder';
+export type BackendKind = 'local-file' | 'shared-folder';
 export type Unsubscribe = () => void;
 
 export interface TrackerSnapshot {

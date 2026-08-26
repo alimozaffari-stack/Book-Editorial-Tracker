@@ -61,3 +61,12 @@ test('desktop preload sends Save As exports in the main-process payload shape', 
   assert.equal(calls[0][1].filename, 'report.csv');
   assert.equal(calls[0][1].contents, 'chapter_id,title');
 });
+
+test('desktop preload forwards bounded manuscript compiler requests', async () => {
+  const { exposed, calls } = loadPreloadApi();
+  const request = { format: 'docx', projectName: 'Book', chapters: [] };
+
+  await exposed.api.compileManuscript(request);
+
+  assert.deepEqual(calls, [['compile-manuscript', request]]);
+});

@@ -1,23 +1,19 @@
 import React, { useState } from 'react';
-import { Cloud, FileJson, FolderSync } from 'lucide-react';
+import { FileJson, FolderSync } from 'lucide-react';
 
 interface StorageModeChooserProps {
-  isPublicBuild: boolean;
   busy: boolean;
   message: string;
   error: string | null;
-  onChooseFirebase: () => void;
   onCreateLocalProject: (editorLabel: string, projectName: string) => Promise<void>;
   onOpenLocalProject: (editorLabel: string) => Promise<void>;
   onOpenSharedProject: (editorLabel: string) => Promise<void>;
 }
 
 export function StorageModeChooser({
-  isPublicBuild,
   busy,
   message,
   error,
-  onChooseFirebase,
   onCreateLocalProject,
   onOpenLocalProject,
   onOpenSharedProject,
@@ -34,17 +30,7 @@ export function StorageModeChooser({
         <h1 className="text-2xl font-bold text-gray-900">Choose storage</h1>
         <p className="mt-2 text-sm text-gray-600">Public beta projects start from an explicit storage choice.</p>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <button
-            type="button"
-            onClick={onChooseFirebase}
-            disabled={busy}
-            className="text-left rounded-lg border border-gray-200 p-4 hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-60"
-          >
-            <Cloud className="h-5 w-5 text-indigo-700" />
-            <div className="mt-3 font-semibold text-gray-900">Firebase team</div>
-            <div className="mt-1 text-sm text-gray-600">live collaboration</div>
-          </button>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
           <div className="rounded-lg border border-gray-200 p-4">
             <FileJson className="h-5 w-5 text-emerald-700" />
             <div className="mt-3 font-semibold text-gray-900">Local project file</div>
@@ -72,7 +58,6 @@ export function StorageModeChooser({
           </div>
         </div>
 
-        {isPublicBuild && <p className="mt-5 text-xs text-gray-500">The public beta does not open the owner tracker unless you choose and configure your own Firebase project.</p>}
         {busy && <p className="mt-4 text-sm text-gray-600">Working...</p>}
         {message && <p className="mt-4 text-sm text-emerald-700">{message}</p>}
         {error && <p className="mt-4 text-sm text-red-700">{error}</p>}

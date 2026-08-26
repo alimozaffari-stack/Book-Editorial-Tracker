@@ -3,9 +3,7 @@ import { applyStageHistoryProjections, chapterStageRank, clearLegacyStageProject
 import { isSafeChapterMetadata, isSafeStageRecord } from '../domain/chapterValidation';
 import { ProjectImportPlan, ProjectImportResult, validateInventoryChaptersForCreation } from '../domain/projectImportPlan';
 import { normalizeProjectState, validateProjectState } from '../domain/projectState';
-import { Chapter, ChapterStageRecord, ProjectState } from '../types';
-import { ReviewedResetInput } from '../utils/projectWrites';
-import { WriteResult } from '../utils/chapterWrites';
+import { Chapter, ChapterStageRecord, ProjectState, ReviewedResetInput, WriteResult } from '../types';
 import { TrackerBackend, TrackerSnapshot, Unsubscribe } from './TrackerBackend';
 import {
   PortableProjectFile,

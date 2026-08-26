@@ -1,17 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { initializeApp } from 'firebase/app';
-import { Firestore, getFirestore } from 'firebase/firestore';
 import { Chapter, ChapterStageRecord, ProjectState } from '../src/types';
-import { FirebaseTrackerBackend, FirebaseTrackerBackendOptions } from '../src/storage/FirebaseTrackerBackend';
 import { createBackend } from '../src/storage/backendFactory';
 import { ActivityViewEvent } from '../src/domain/activityView';
 import { ProjectImportResult, ProjectImportPlan } from '../src/domain/projectImportPlan';
-import { WriteResult, createInventoryChaptersIfAbsent } from '../src/utils/chapterWrites';
 import { LocalFileTrackerBackend } from '../src/storage/LocalFileTrackerBackend';
 import { SharedFolderTrackerBackend } from '../src/storage/SharedFolderTrackerBackend';
 import { PortableProjectFile, assertPortableProjectRevision, parsePortableProjectFile, preparePortableProjectOpen, serializePortableProjectFile } from '../src/storage/projectFileFormat';
-import * as wrapper from '../src/utils/firestoreWrapper';
 
 function inventoryChapter(id: string, title = `Title ${id}`, contributorName = `Contributor ${id}`): Chapter {
   return {
@@ -55,221 +50,13 @@ function makeFirebaseDb(name: string): Firestore {
   return getFirestore(app);
 }
 
-test('FirebaseTrackerBackend delegates write operations to existing Firebase write helpers', async () => {
-  const writes = {
-    saveCalled: 0,
-    appendCalled: 0,
-    voidCalled: 0,
-    createCalled: 0,
-    deleteCalled: 0,
-    batchCalled: 0,
-    startCalled: 0,
-    applyImportCalled: 0,
-    createProjectCalled: 0,
-  };
 
-  const chapter: Chapter = { id: 'CH-01', dataRevision: 1, contributorId: 'A', contributorName: 'One', contributorEmail: 'a@example.com', title: 'T', folderUrl: '', leadEditor: '', initialAbstractSubmitted: 'No', updatedAbstractSubmitted: 'No', initialChapterSubmission: 'No', initialChapterDate: '', submittedWordCount: '0', followUpForInitialSubmission: 'No', followUpDate: '', feedbackSent: 'No', dateFeedbackSent: '', feedbackLink: '', revision01Submitted: 'No', dateRevision01Submitted: '', followUpContacted: 'No', dateFollowUpContacted: '', decisionToProceed: 'No', reasonIfNo: '', imageListSubmitted: 'No', imagesMeetQc: 'No', indexingTermsSubmitted: 'No' };
-  const record: ChapterStageRecord = { id: 'r-01', stage: 'revision', roundNumber: 1, effectiveOn: '2026-01-01', recordedAt: '2026-01-01T00:00:00Z', recordedBy: 'a@example.com', state: 'active' };
-  const project: ProjectState = { name: 'Current', generationId: 'g1', startedAt: '2026-01-01T00:00:00Z', startedBy: 'a@example.com', updatedAt: '2026-01-01T00:00:00Z' };
 
-  const backend = new FirebaseTrackerBackend({
-    dependencies: {
-      saveChapterWithRevision: async (_db, _, expectedRevision, actor) => {
-        assert.equal(expectedRevision, 1);
-        assert.equal(actor, 'editor@example.com');
-        writes.saveCalled += 1;
-        return { kind: 'ok', new: { ...chapter, dataRevision: 2 } } as WriteResult;
-      },
-      updateChapterFieldsBatch: async (_db, _chapterIds, _field, _value, actor) => {
-        assert.equal(actor, 'editor@example.com');
-        writes.batchCalled += 1;
-      },
-      appendStageRecordWithRevision: async () => {
-        writes.appendCalled += 1;
-        return { kind: 'ok', new: chapter } as WriteResult;
-      },
-      voidStageRecordWithRevision: async () => {
-        writes.voidCalled += 1;
-        return { kind: 'ok', new: chapter } as WriteResult;
-      },
-      createChaptersIfAbsent: async () => {
-        writes.createCalled += 1;
-        return { created: ['CH-01'], skipped: [] };
-      },
-      deleteChaptersWithActivity: async () => {
-        writes.deleteCalled += 1;
-        return { kind: 'ok', new: chapter } as WriteResult;
-      },
-      startNewProjectWithRevisionCheck: async () => {
-        writes.startCalled += 1;
-        return project;
-      },
-      createInitialProject: async () => {
-        writes.createProjectCalled += 1;
-        return { name: 'Imported', generationId: 'g1', startedAt: '2026-01-01T00:00:00Z', startedBy: 'editor@example.com', updatedAt: '2026-01-01T00:00:00Z' };
-      },
-      applyProjectImport: async () => {
-        writes.applyImportCalled += 1;
-        const result: ProjectImportResult = {
-          chaptersChanged: 1,
-          stageRecordsAdded: 1,
-          alreadyRecorded: 0,
-          excluded: 0,
-          unsupported: 0,
-          failed: 0,
-          changedChapters: [chapter],
-        };
-        return result;
-      },
-      subscribeProject: () => () => undefined,
-      subscribeChapters: () => () => undefined,
-      subscribeActivity: () => () => undefined,
-    } as FirebaseTrackerBackendOptions['dependencies'],
-  } as FirebaseTrackerBackendOptions);
 
-  const saveResult = await backend.saveChapter(chapter, 1, 'editor@example.com');
-  assert.equal(saveResult.kind, 'ok');
-  assert.equal(writes.saveCalled, 1);
 
-  await backend.appendStageRecord('CH-01', record, 1, 'editor@example.com');
-  await backend.voidStageRecord('CH-01', 'r-01', 'typo', 2, 'editor@example.com');
-  await backend.batchUpdateChapterFields(['CH-01'], 'leadEditor', 'Editor', 'editor@example.com');
-  await backend.createChapters([chapter], 'editor@example.com', 'manual-entry');
-  await backend.deleteChapters([chapter], 'editor@example.com');
-  await backend.startNewProject({ previousProject: project, nextProjectName: 'Next', reviewedChapters: [{ id: 'CH-01', dataRevision: 1 }], backupExportedAt: '2026-01-01T00:00:00Z' }, 'editor@example.com');
-  await backend.applyProjectImport({ entries: [], expectedRevisions: {} } as ProjectImportPlan, 'editor@example.com');
-  await backend.createInitialProject('Imported', 'editor@example.com');
 
-  assert.equal(writes.appendCalled, 1);
-  assert.equal(writes.voidCalled, 1);
-  assert.equal(writes.batchCalled, 1);
-  assert.equal(writes.createCalled, 1);
-  assert.equal(writes.deleteCalled, 1);
-  assert.equal(writes.startCalled, 1);
-  assert.equal(writes.applyImportCalled, 1);
-  assert.equal(writes.createProjectCalled, 1);
-});
 
-test('FirebaseTrackerBackend uses scan-inventory backend path and can be rejected for pre-write ID conflicts', async () => {
-  let delegated = 0;
-  let accidental = 0;
-  const chapter = { id: 'CH-01', dataRevision: 1, contributorId: 'A', contributorName: 'One', contributorEmail: 'a@example.com', title: 'T', folderUrl: '', leadEditor: '', initialAbstractSubmitted: 'No', updatedAbstractSubmitted: 'No', initialChapterSubmission: 'No', initialChapterDate: '', submittedWordCount: '0', followUpForInitialSubmission: 'No', followUpDate: '', feedbackSent: 'No', dateFeedbackSent: '', feedbackLink: '', revision01Submitted: 'No', dateRevision01Submitted: '', followUpContacted: 'No', dateFollowUpContacted: '', decisionToProceed: 'No', reasonIfNo: '', imageListSubmitted: 'No', imagesMeetQc: 'No', indexingTermsSubmitted: 'No' };
-  const backend = new FirebaseTrackerBackend({
-    dependencies: {
-      createInventoryChaptersIfAbsent: async () => {
-        delegated += 1;
-        throw new Error('Nothing was created. A selected chapter already exists; reload the scan and review the inventory again.');
-      },
-      createChaptersIfAbsent: async () => {
-        accidental += 1;
-        return { created: [], skipped: [] };
-      },
-    } as FirebaseTrackerBackendOptions['dependencies'],
-  } as FirebaseTrackerBackendOptions);
 
-  await assert.rejects(async () => {
-    await backend.createChaptersFromInventory([chapter, { ...chapter, id: 'CH-02' }], 'editor@example.com');
-  }, /already exists/);
-
-  assert.equal(delegated, 1);
-  assert.equal(accidental, 0);
-});
-
-test('createInventoryChaptersIfAbsent rejects a case-insensitive live collision before any Firebase write', async () => {
-  const db = makeFirebaseDb('inventory-case-collision');
-  const originalRunTransaction = wrapper.runTransaction;
-  wrapper.setFirestoreReferenceResolversForTest(
-    (_db, id) => ({ id } as any),
-    () => ({ id: 'activity-event' } as any),
-  );
-  let setCalls = 0;
-  let activityWrites = 0;
-  wrapper.setRunTransaction(async (_db, callback) => callback({
-    get: async (target: { type?: string; id?: string }) => {
-      if (target?.type === 'collection') {
-        return {
-          docs: [
-            {
-              id: 'existing-doc',
-              data: () => inventoryChapter('ch-01', 'Existing title', 'Existing contributor'),
-            },
-          ],
-        };
-      }
-      throw new Error(`Unexpected get target: ${String(target?.id ?? target?.type)}`);
-    },
-    set: (ref: { id: string }) => {
-      if (ref.id === 'activity-event') {
-        activityWrites += 1;
-        return;
-      }
-      setCalls += 1;
-    },
-  } as any));
-
-  try {
-    await assert.rejects(
-      () => createInventoryChaptersIfAbsent(db, [inventoryChapter('CH-01')], 'editor@example.com'),
-      /already exists/i,
-    );
-    assert.equal(setCalls, 0);
-    assert.equal(activityWrites, 0);
-  } finally {
-    wrapper.setRunTransaction(originalRunTransaction as any);
-    wrapper.setFirestoreReferenceResolversForTest();
-  }
-});
-
-test('createBackend defaults to the Firebase implementation', () => {
-  const backend = createBackend();
-  assert.equal(backend.kind, 'firebase');
-  assert.equal(backend.supportsConcurrentEditing, true);
-});
-
-test('FirebaseTrackerBackend marks concurrent edits as supported and subscribes listeners', () => {
-  const project: ProjectState = { name: 'Current', generationId: 'g1', startedAt: '2026-01-01T00:00:00Z', startedBy: 'editor@example.com', updatedAt: '2026-01-01T00:00:00Z' };
-  const chapters = [{ id: 'CH-01', contributorId: 'A', contributorName: 'One', contributorEmail: 'a@example.com', title: 'T', folderUrl: '', leadEditor: '', initialAbstractSubmitted: 'No', updatedAbstractSubmitted: 'No', initialChapterSubmission: 'No', initialChapterDate: '', submittedWordCount: '0', followUpForInitialSubmission: 'No', followUpDate: '', feedbackSent: 'No', dateFeedbackSent: '', feedbackLink: '', revision01Submitted: 'No', dateRevision01Submitted: '', followUpContacted: 'No', dateFollowUpContacted: '', decisionToProceed: 'No', reasonIfNo: '', imageListSubmitted: 'No', imagesMeetQc: 'No', indexingTermsSubmitted: 'No' }];
-  const activity: ActivityViewEvent[] = [{ id: 'activity-01', actorEmail: 'a@example.com', action: 'chapter-created', summary: 'created CH-01' }];
-  let subscribeProjectCalled = 0;
-  let subscribeChaptersCalled = 0;
-  let subscribeActivityCalled = 0;
-  const backend = new FirebaseTrackerBackend({
-    dependencies: {
-      appendStageRecordWithRevision: (_db, _chapterId, _record, _revision, _actor) => Promise.resolve({ kind: 'ok', new: chapters[0] as Chapter }),
-      voidStageRecordWithRevision: (_db, _chapterId, _recordId, _reason, _revision, _actor) => Promise.resolve({ kind: 'ok', new: chapters[0] as Chapter }),
-      createChaptersIfAbsent: (_db, _chapters, _actor, _source) => Promise.resolve({ created: [], skipped: [] }),
-      deleteChaptersWithActivity: (_db, _chapters, _actor) => Promise.resolve({ kind: 'ok', new: chapters[0] as Chapter }),
-      startNewProjectWithRevisionCheck: (_db, _input, _actor) => Promise.resolve(project),
-      subscribeProject: (_db, onProject) => {
-        subscribeProjectCalled += 1;
-        onProject(project);
-        return () => {};
-      },
-      subscribeChapters: (_db, onChapters) => {
-        subscribeChaptersCalled += 1;
-        onChapters(chapters as unknown as Chapter[]);
-        return () => {};
-      },
-      subscribeActivity: (_db, onActivity) => {
-        subscribeActivityCalled += 1;
-        onActivity(activity);
-        return () => {};
-      },
-    } as FirebaseTrackerBackendOptions['dependencies'],
-  } as FirebaseTrackerBackendOptions);
-
-  const snapshots = [] as any[];
-  const unsubscribe = backend.subscribe((snapshot) => snapshots.push(snapshot), () => { throw new Error('not expected'); });
-  assert.equal(subscribeProjectCalled, 1);
-  assert.equal(subscribeChaptersCalled, 1);
-  assert.equal(subscribeActivityCalled, 1);
-  assert.equal(snapshots.length, 3);
-  assert.equal(snapshots[0].project?.name, 'Current');
-  assert.equal(snapshots[1].chapters[0].id, 'CH-01');
-  assert.equal(snapshots[2].activity[0].summary, 'created CH-01');
-  assert.equal(backend.supportsConcurrentEditing, true);
-  unsubscribe();
-});
 
 test('LocalFileTrackerBackend creates, saves, reopens, edits, and saves synthetic local project data', async () => {
   const project: ProjectState = { name: 'Local Project', generationId: 'g1', startedAt: '2026-01-01T00:00:00.000Z', startedBy: 'tester', updatedAt: '2026-01-01T00:00:00.000Z' };

@@ -1,0 +1,12 @@
+Please implement the Full Manuscript & Chapter Compiler feature on this branch:
+
+1. UI Integration: Add a "Compile Manuscript" button in the left navigation panel (or Chapter List header) that opens a "Compile Manuscript" modal.
+2. Options Modal: Allow users to select target export format:
+   - Combined Markdown (.md)
+   - Combined Word Document (.docx)
+   - ZIP Archive of latest stage source files (.zip)
+   Also allow toggling inclusion options (e.g., stage selection, including chapter abstracts or metadata).
+3. Logic & IPC: Aggregate chapters ordered by chapter number/sequence, read their latest stage content/attachments, and trigger standard OS save file dialogs via IPC.
+4. Error Handling: Wrap file reads and generation in try/catch boundaries with user-friendly error notifications.
+
+Run `npm test` and `npm run build` when finished to verify that everything compiles and passes cleanly.

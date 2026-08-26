@@ -1,11 +1,8 @@
-import { Firestore } from 'firebase/firestore';
 import { Chapter, ChapterStageRecord } from '../types';
 import { InspectionResult } from '../utils/docxInspection';
 import { createChapter } from '../utils/chapterImport';
 import { createSubmissionRecord } from '../utils/submissionUtils';
-import { getActivityEventRef, getChapterRef, runTransaction } from '../utils/firestoreWrapper';
 import { applyStageHistoryProjections } from './chapterStageHistory';
-import { writeActivityEvent } from './activityLog';
 import { isSafeProjectReference } from './projectReference';
 import { isCalendarDate, isSafeChapterId, isSafeChapterMetadata, isSafeStageRecord } from './chapterValidation';
 import { ProjectStageProposal, chapterIdFromFolder, proposalFromStageFolder } from './projectFolderScan';

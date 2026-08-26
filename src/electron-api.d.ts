@@ -1,6 +1,42 @@
+type CompileManuscriptFormat = 'md' | 'docx' | 'zip';
+
+interface CompileManuscriptSource {
+  stage: import('./types').ChapterStage;
+  roundNumber?: number;
+  effectiveOn: string;
+  sourceFileName?: string;
+  sourceRelativePath?: string;
+  sourceSha256?: string;
+}
+
+interface CompileManuscriptChapter {
+  id: string;
+  title: string;
+  contributorName?: string;
+  contributorEmail?: string;
+  institutionalAffiliation?: string;
+  abstractText?: string;
+  source: CompileManuscriptSource;
+}
+
+interface CompileManuscriptRequest {
+  format: CompileManuscriptFormat;
+  projectName: string;
+  includeAbstracts: boolean;
+  includeMetadata: boolean;
+  chapters: CompileManuscriptChapter[];
+}
+
+interface CompileManuscriptResult {
+  cancelled: boolean;
+  filePath?: string;
+  includedChapters: number;
+}
+
 interface Window {
   editorialTracker?: {
     saveLocalExport: (filename: string, contents: string) => Promise<{ cancelled: boolean; filePath?: string }>;
+    compileManuscript: (request: CompileManuscriptRequest) => Promise<CompileManuscriptResult>;
     openFolderForFile: (filePath: string) => Promise<void>;
     selectDocx: () => Promise<SelectedDocx | null>;
     scanProjectFolder: () => Promise<ProjectFolderScan | null>;
@@ -8,9 +44,6 @@ interface Window {
     inspectProjectDocx: (relativePath: string) => Promise<SelectedDocx>;
     forgetProjectFolder: () => Promise<void>;
     openStageSource: (request: StageSourceRequest) => Promise<StageSourceResult>;
-    loadFirebaseProfile: () => Promise<{ ok: true; profile: UserFirebaseProfile | null } | { ok: false; profile?: null; message?: string }>;
-    saveFirebaseProfile: (profile: UserFirebaseProfile) => Promise<{ ok: true; profile: UserFirebaseProfile } | { ok: false; message: string }>;
-    clearFirebaseProfile: () => Promise<{ ok: true } | { ok: false; message: string }>;
     chooseProjectFile: () => Promise<{ cancelled: boolean; contents?: string; fileToken?: string }>;
     chooseSharedProjectFile: () => Promise<{ cancelled: boolean; contents?: string; fileToken?: string }>;
     saveProjectFile: (fileToken: string, expectedHash: string, contents: string) => Promise<{ ok: boolean; hash?: string; message: string }>;

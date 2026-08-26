@@ -7,10 +7,12 @@ import {
   History,
   Trash2,
   AlertTriangle,
+  BookOpen,
 } from "lucide-react";
 import { ChapterIntake } from "./ChapterIntake";
 import { deriveChapterProgress } from "../domain/chapterProgress";
 import StageSourceActions, { hasStageSourceReference } from "./StageSourceActions";
+import CompileManuscriptModal from "./CompileManuscriptModal";
 
 interface ChapterListProps {
   chapters: Chapter[];
@@ -25,6 +27,7 @@ interface ChapterListProps {
     source: "manual-entry" | "csv-import" | "backup-import",
   ) => Promise<{ created: string[]; skipped: string[] }>;
   onDelete: (chapters: Chapter[]) => Promise<void>;
+  projectName: string;
   canEdit: boolean;
   canDelete: boolean;
 }
@@ -35,6 +38,7 @@ export function ChapterList({
   onBatchUpdate,
   onCreate,
   onDelete,
+  projectName,
   canEdit,
   canDelete,
 }: ChapterListProps) {
@@ -45,6 +49,7 @@ export function ChapterList({
   const [batchMessage, setBatchMessage] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState("");
+  const [showCompiler, setShowCompiler] = useState(false);
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -118,11 +123,15 @@ export function ChapterList({
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      {showCompiler && <CompileManuscriptModal chapters={chapters} projectName={projectName} onClose={() => setShowCompiler(false)} />}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Chapters</h1>
-        {canEdit && (
-          <ChapterIntake existingChapters={chapters} onCreate={onCreate} />
-        )}
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => setShowCompiler(true)} disabled={chapters.length === 0} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50">
+            <BookOpen className="h-4 w-4" /> Compile Manuscript
+          </button>
+          {canEdit && <ChapterIntake existingChapters={chapters} onCreate={onCreate} />}
+        </div>
       </div>
 
       {canEdit && selectedIds.size > 0 && (
