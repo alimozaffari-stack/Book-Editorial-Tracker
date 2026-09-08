@@ -61,6 +61,8 @@ export class SharedFolderTrackerBackend implements TrackerBackend {
   readonly supportsConcurrentEditing = false;
   private file: PortableProjectFile;
   private currentHash?: string;
+  private pendingRecoveryContents?: string;
+  private mutationQueue: Promise<unknown> = Promise.resolve();
   private readonly listeners = new Set<(snapshot: TrackerSnapshot) => void>();
   private readonly fileToken: string;
   private readonly editorLabel: string;
@@ -173,10 +175,10 @@ export class SharedFolderTrackerBackend implements TrackerBackend {
   }
 
   async createInitialProject(name: string, actor: string): Promise<ProjectState> {
-    if (this.file.projectRevision > 0) throw new Error('A project is already named.');
     const timestamp = nowIso();
     const project = validateProjectState(normalizeProjectState(name, nextId('generation'), actor, timestamp));
     return this.withMutation(async nextFile => {
+      if (nextFile.projectRevision > 0) throw new Error('A project is already named.');
       nextFile.project = project;
       await this.recordMutation(nextFile, actor, 'project-started', `Project started: ${project.name}`);
       return project;
@@ -285,26 +287,27 @@ export class SharedFolderTrackerBackend implements TrackerBackend {
   }
 
   async startNewProject(input: ReviewedResetInput, actor: string): Promise<ProjectState> {
-    const previousProject = validateProjectState(input.previousProject);
-    const liveProject = validateProjectState(this.file.project);
-    if (liveProject.generationId !== previousProject.generationId || liveProject.startedAt !== previousProject.startedAt || liveProject.startedBy !== previousProject.startedBy || liveProject.name !== previousProject.name) {
-      throw new Error(RESTART_CONFLICT_MESSAGE);
-    }
     return this.withMutation(async nextFile => {
-      for (const reviewed of input.reviewedChapters) {
-        const current = nextFile.chapters.find(chapter => chapter.id === reviewed.id);
-        if (!current || (current.dataRevision ?? 0) !== reviewed.dataRevision) throw new Error(RESTART_CONFLICT_MESSAGE);
-      }
+      if (nextFile.projectRevision !== input.expectedRevision) throw new Error(RESTART_CONFLICT_MESSAGE);
       const timestamp = nowIso();
-      const project = validateProjectState(normalizeProjectState(input.nextProjectName, nextId('generation'), actor, timestamp));
-      nextFile.chapters = nextFile.chapters.filter(chapter => !input.reviewedChapters.some(reviewed => reviewed.id === chapter.id));
+      const project = validateProjectState(normalizeProjectState(input.name, nextId('generation'), actor, timestamp));
+      nextFile.chapters = [];
       nextFile.project = project;
       await this.recordMutation(nextFile, actor, 'project-started', `Started project: ${project.name}`);
       return project;
     });
   }
 
-  async close(): Promise<void> {
+  recoveryContents(): string {
+    return this.pendingRecoveryContents ?? serializePortableProjectFile(this.file);
+  }
+
+  hasPendingRecovery(): boolean { return this.pendingRecoveryContents !== undefined; }
+
+  async close(recoverySaved = false): Promise<void> {
+    await this.mutationQueue;
+    if (recoverySaved) this.pendingRecoveryContents = undefined;
+    if (this.hasPendingRecovery()) throw new Error('Save a conflict copy before closing this project.');
     this.listeners.clear();
   }
 
@@ -312,7 +315,14 @@ export class SharedFolderTrackerBackend implements TrackerBackend {
     if (!this.canEdit) throw new Error(this.readOnlyMessage);
   }
 
-  private async withMutation<T>(mutate: (nextFile: PortableProjectFile) => Promise<T> | T): Promise<T> {
+  private withMutation<T>(mutate: (nextFile: PortableProjectFile) => Promise<T> | T): Promise<T> {
+    const operation = this.mutationQueue.then(() => this.performMutation(mutate));
+    this.mutationQueue = operation.catch(() => undefined);
+    return operation;
+  }
+
+  private async performMutation<T>(mutate: (nextFile: PortableProjectFile) => Promise<T> | T): Promise<T> {
+    if (this.hasPendingRecovery()) throw new Error('Save a conflict copy before making further changes.');
     this.assertWritable();
     await this.verifyOwnershipBeforeMutation();
     if (this.file.projectRevision !== this.expectedRevision) {
@@ -326,7 +336,9 @@ export class SharedFolderTrackerBackend implements TrackerBackend {
       if (this.isNoopResult(result)) {
         return result;
       }
+      if (nextFile.projectRevision === priorFile.projectRevision) return result;
       const contents = serializePortableProjectFile(nextFile);
+      this.pendingRecoveryContents = contents;
       const expectedHash = priorHash ?? await hashPortableProjectContents(await this.currentContents());
       const saveResult = await this.fileApi.saveSharedProjectFile(
         this.fileToken,
@@ -340,6 +352,7 @@ export class SharedFolderTrackerBackend implements TrackerBackend {
       }
       if (!saveResult.ok || !saveResult.hash) throw new Error(saveResult.message || 'The project file could not be saved.');
       this.file = nextFile;
+      this.pendingRecoveryContents = undefined;
       this.currentHash = saveResult.hash;
       this.expectedRevision = this.file.projectRevision;
       this.emit();

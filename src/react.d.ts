@@ -6,6 +6,7 @@ declare module 'react' {
   const React: any;
   export default React;
   export function useState<S>(initialState: S | (() => S)): [S, (newState: S | ((prev: S) => S)) => void];
+  export function useMemo<T>(factory: () => T, deps: readonly unknown[]): T;
   export function useEffect(effect: () => void | (() => void), deps?: any[]): void;
   export function useRef<T>(initialValue: T): { current: T };
   export type ChangeEvent<T = any> = any;

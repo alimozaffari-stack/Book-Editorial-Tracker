@@ -1,35 +1,40 @@
-# Releasing Book Editorial Tracker Public Beta
+# Release verification
 
-This checklist is for local release preparation only. Do not push, publish, deploy Firestore rules, or package an installer until the owner explicitly approves those steps.
+Build a fresh Windows candidate from this isolated recovery checkout. Do not reuse a historical installer as evidence for current source. Keep the source version at 0.2.0 until a release version is explicitly chosen. Publishing, pushing and signing are separate actions.
 
-## Verification checklist
+## Source checks
 
-1. Run the full local verification set from the repository root:
-   - `cmd /c npm test`
-   - `cmd /c npm run lint`
-   - `cmd /c npm run build:public`
-   - `node --test tests/publicPackageArchive.test.mjs`
-   - `git diff --check`
-2. If `cmd /c npm run build:public` fails only with the known local Vite/esbuild access-denied environment issue, rerun the identical command elevated and record both outcomes.
-3. Confirm the public build artifacts are current before any packaging decision.
-4. After separate approval for packaging, run `cmd /c npm run make:public`.
-5. Inspect the packaged `app.asar` and confirm zero matches for:
-   - owner Firebase project ID
-   - owner Firebase API key
-   - owner email
-   - `firebase-applet-config.json`
-6. Record checksums for the verified Setup executable and any release files that will be published.
+Run from this repository in a Windows terminal:
 
-## Manual smoke test before publishing
+```
+npm test
+npm run lint
+npm run build:public
+git diff --check
+```
 
-1. Create a local project file and confirm create, save, close, reopen, and save again all work.
-2. Open a shared-folder project and confirm the open/save path works for one editor at a time.
-3. Confirm conflicting shared-folder saves are blocked rather than merged.
-4. Confirm source scanning remains read-only and does not modify the selected source folder or documents.
+The default test command includes every source test file. The archive test is a separate post-package gate because it requires the exact new artifact.
 
-## Publication boundary
+## Package checks
 
-1. The owner must manually create the GitHub release.
-2. Upload only the verified public `Setup.exe` and its checksum.
-3. Do not upload owner-only Firebase configuration.
-4. Do not claim production readiness; keep the release labeled as a Windows public beta.
+Run `npm run make:public:installer` to prepare the Windows installer, or `npm run package` with VITE_APP_VARIANT=public for a portable application directory. Use a fresh output directory. In PowerShell, set BET_PUBLIC_ASAR_PATH to the exact new resources/app.asar and run:
+
+```
+node --test tests/publicPackageArchive.test.mjs
+```
+
+Check the sibling app.asar.unpacked dependency tree as well. Verify JSZip loads at runtime; inspect the complete package for development attachments, project data, locks, logs, credentials and token files. Record the source commit, dirty diff/source hashes, commands, exit statuses, executable and archive hashes. Test archive integrity after compression.
+
+## Runtime acceptance
+
+Use synthetic data in an isolated application profile:
+
+1. Launch the packaged executable and verify no startup exception.
+2. Create a project, add/edit a chapter, save, close, reopen and verify the saved values.
+3. Export JSON and CSV; restore JSON and verify project/chapter/stage data.
+4. Append and void a stage record; verify revision and activity history after reopening.
+5. Open the shared project in two instances; verify the second cannot edit, ownership loss blocks later saves, and reopening after lock release enables editing.
+6. Simulate an external change and verify the original remains intact and Save As conflict copy preserves attempted changes.
+7. Scan a source folder and verify its files remain byte-identical.
+
+Passing source tests does not replace packaged runtime acceptance. Record any untested clean-machine, installer, signing or synchronized-folder behaviour explicitly. Release status remains HOLD until required acceptance is complete. Owner approval is required before external publication.

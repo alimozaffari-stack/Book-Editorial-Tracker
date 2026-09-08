@@ -8,7 +8,7 @@ import { BiosView } from './components/BiosView';
 import { AbstractsView } from './components/AbstractsView';
 import { ActivityView } from './components/ActivityView';
 import { StorageModeChooser } from './components/StorageModeChooser';
-import { LayoutDashboard, List, CheckSquare, FileText, LogOut, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, List, CheckSquare, FileText, LogOut, ClipboardList, CircleHelp, Users } from 'lucide-react';
 import editorialMark from './assets/editorial-review-tracker-mark.png';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BackupIntakeView } from './components/BackupIntakeView';
@@ -35,9 +35,11 @@ function AppContent() {
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<string | null>(null);
   const [refreshFailed, setRefreshFailed] = useState(false);
+  const [listenerAttempt, setListenerAttempt] = useState(0);
   const [project, setProject] = useState<ProjectState | null>(null);
   const [projectSetupFocus, setProjectSetupFocus] = useState<ProjectSetupFocus>(null);
   const [jsonBackupExportedAt, setJsonBackupExportedAt] = useState<string | null>(null);
+  const backupRevision = useRef<number | null>(null);
   const [activity, setActivity] = useState<ActivityViewEvent[]>([]);
 
   const [storageKind, setStorageKind] = useState<BackendKind | null>(null);
@@ -61,6 +63,7 @@ function AppContent() {
   const [sharedForceUnlockText, setSharedForceUnlockText] = useState('');
   const sharedLockHeartbeatMs = window.editorialTracker?.sharedProjectLockHeartbeatMs ?? 60 * 1000;
   const sharedHeartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heartbeatGeneration = useRef(0);
   const sharedInstanceId = useRef<string>(
     (typeof globalThis.crypto !== 'undefined' && 'randomUUID' in globalThis.crypto
       ? globalThis.crypto.randomUUID()
@@ -80,6 +83,7 @@ function AppContent() {
   };
 
   const clearSharedHeartbeat = () => {
+    heartbeatGeneration.current += 1;
     if (sharedHeartbeatTimer.current !== null) {
       clearInterval(sharedHeartbeatTimer.current);
       sharedHeartbeatTimer.current = null;
@@ -89,7 +93,6 @@ function AppContent() {
   const markSharedOwnershipLost = (message = SHARED_OWNERSHIP_LOST_MESSAGE) => {
     clearSharedHeartbeat();
     setSharedProjectCanEdit(false);
-    setLocalSaveNeedsCopy(false);
     setRuntimeError(message);
     if (backendRef.current instanceof SharedFolderTrackerBackend) {
       backendRef.current.setCanEdit(false, message);
@@ -98,14 +101,20 @@ function AppContent() {
 
   const beginSharedHeartbeat = (fileToken: string) => {
     clearSharedHeartbeat();
+    const generation = heartbeatGeneration.current;
     sharedHeartbeatTimer.current = setInterval(() => {
       void (async () => {
+        try {
         const result = await window.editorialTracker?.heartbeatSharedProjectLock?.(fileToken, sharedInstanceId.current);
+        if (generation !== heartbeatGeneration.current) return;
         if (!result?.ok) {
           markSharedOwnershipLost(result?.message || SHARED_OWNERSHIP_LOST_MESSAGE);
           return;
         }
         if (result.lock) setSharedProjectLock(result.lock);
+        } catch {
+          if (generation === heartbeatGeneration.current) markSharedOwnershipLost();
+        }
       })();
     }, sharedLockHeartbeatMs);
   };
@@ -117,16 +126,19 @@ function AppContent() {
   };
 
   const closeCurrentBackend = async () => {
+    if (backend) await backend.close();
     await releaseSharedProjectLock();
     clearSharedHeartbeat();
     if (backend) {
-      await backend.close();
       setBackend(null);
     }
     setProject(null);
     setChapters([]);
     setActivity([]);
     setStorageKind(null);
+    setJsonBackupExportedAt(null);
+    setEditingChapter(null);
+    setProjectSetupFocus(null);
     setSharedProjectLock(null);
     setSharedProjectCanEdit(false);
     setSharedProjectFileToken('');
@@ -143,6 +155,7 @@ function AppContent() {
       setChapters(snapshot.chapters);
       setActivity(snapshot.activity);
       setProjectRevision(snapshot.revision);
+      if (backupRevision.current !== snapshot.revision) setJsonBackupExportedAt(null);
       setLocalSaveNeedsCopy(false);
       setRuntimeError(null);
       setLastRefresh(new Date().toLocaleTimeString());
@@ -157,23 +170,34 @@ function AppContent() {
     });
 
     return () => unsubscribe();
-  }, [backend]);
+  }, [backend, listenerAttempt]);
 
 
 
   useEffect(() => {
+    if (!(backend instanceof SharedFolderTrackerBackend) || !sharedProjectCanEdit || !sharedProjectFileToken) return;
+    beginSharedHeartbeat(sharedProjectFileToken);
+    const ownedTimer = sharedHeartbeatTimer.current;
     return () => {
-      void releaseSharedProjectLock();
-      clearSharedHeartbeat();
-      void backend?.close();
+      if (ownedTimer !== null) clearInterval(ownedTimer);
+      heartbeatGeneration.current += 1;
+      if (sharedHeartbeatTimer.current === ownedTimer) sharedHeartbeatTimer.current = null;
     };
+  }, [backend, sharedProjectCanEdit, sharedProjectFileToken]);
+
+  useEffect(() => {
+    const preventLosingDraft = (event: BeforeUnloadEvent) => {
+      if (backend?.hasPendingRecovery()) { event.preventDefault(); event.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', preventLosingDraft);
+    return () => window.removeEventListener('beforeunload', preventLosingDraft);
   }, [backend]);
 
-  const canEdit = isSharedMode ? sharedProjectCanEdit && !!actorLabel : !!actorLabel;
+  const canEdit = !localSaveNeedsCopy && (isSharedMode ? sharedProjectCanEdit && !!actorLabel : !!actorLabel);
   const canDelete = canEdit;
 
   const handleSaveChapter = async (updatedChapter: Chapter) => {
-    if (!backend) return;
+    if (!backend) throw new Error('Tracker backend is not ready.');
     try {
       const expectedRevision = updatedChapter.dataRevision ?? 0;
       const result = await backend.saveChapter(updatedChapter, expectedRevision, actorLabel);
@@ -184,7 +208,7 @@ function AppContent() {
       setEditingChapter(result.new);
       return { chapter: result.new, unchanged: false };
     } catch (error) {
-      if (isFileProjectStaleSave(error)) {
+      if (isFileProjectStaleSave(error) || backend?.hasPendingRecovery()) {
         setLocalSaveNeedsCopy(true);
         throw new Error(FILE_STALE_SAVE_MESSAGE);
       }
@@ -193,11 +217,11 @@ function AppContent() {
   };
 
   const handleBatchUpdateChapterFields = async (chapterIds: string[], field: keyof Chapter, value: string) => {
-    if (!backend) return;
+    if (!backend) throw new Error('Tracker backend is not ready.');
     try {
       await backend.batchUpdateChapterFields(chapterIds, field, value, actorLabel);
     } catch (error) {
-      if (isFileProjectStaleSave(error)) {
+      if (isFileProjectStaleSave(error) || backend?.hasPendingRecovery()) {
         setLocalSaveNeedsCopy(true);
         throw new Error(FILE_STALE_SAVE_MESSAGE);
       }
@@ -210,7 +234,7 @@ function AppContent() {
     try {
       return await backend.applyProjectImport(plan, actorLabel);
     } catch (error) {
-      if (isFileProjectStaleSave(error)) {
+      if (isFileProjectStaleSave(error) || backend?.hasPendingRecovery()) {
         setLocalSaveNeedsCopy(true);
         throw new Error(FILE_STALE_SAVE_MESSAGE);
       }
@@ -223,7 +247,7 @@ function AppContent() {
     try {
       return await backend.createChaptersFromInventory(candidateChapters, actorLabel);
     } catch (error) {
-      if (isFileProjectStaleSave(error)) {
+      if (isFileProjectStaleSave(error) || backend?.hasPendingRecovery()) {
         setLocalSaveNeedsCopy(true);
         throw new Error(FILE_STALE_SAVE_MESSAGE);
       }
@@ -232,13 +256,15 @@ function AppContent() {
   };
 
   const handleAppendStageRecord = async (chapterId: string, record: ChapterStageRecord, expectedRevision: number) => {
-    if (!backend) return;
+    if (!backend) throw new Error('Tracker backend is not ready.');
     try {
       const result = await backend.appendStageRecord(chapterId, record, expectedRevision, actorLabel);
+      if (result.kind === 'duplicate' || result.kind === 'unchanged') return result.current;
       if (result.kind !== 'ok') throw result;
       setEditingChapter(result.new);
+      return result.new;
     } catch (error) {
-      if (isFileProjectStaleSave(error)) {
+      if (isFileProjectStaleSave(error) || backend?.hasPendingRecovery()) {
         setLocalSaveNeedsCopy(true);
         throw new Error(FILE_STALE_SAVE_MESSAGE);
       }
@@ -247,13 +273,15 @@ function AppContent() {
   };
 
   const handleVoidStageRecord = async (chapterId: string, recordId: string, reason: string, expectedRevision: number) => {
-    if (!backend) return;
+    if (!backend) throw new Error('Tracker backend is not ready.');
     try {
       const result = await backend.voidStageRecord(chapterId, recordId, reason, expectedRevision, actorLabel);
+      if (result.kind === 'duplicate' || result.kind === 'unchanged') return result.current;
       if (result.kind !== 'ok') throw result;
       setEditingChapter(result.new);
+      return result.new;
     } catch (error) {
-      if (isFileProjectStaleSave(error)) {
+      if (isFileProjectStaleSave(error) || backend?.hasPendingRecovery()) {
         setLocalSaveNeedsCopy(true);
         throw new Error(FILE_STALE_SAVE_MESSAGE);
       }
@@ -266,7 +294,7 @@ function AppContent() {
     try {
       return await backend.createChapters(chaptersToCreate, actorLabel, source);
     } catch (error) {
-      if (isFileProjectStaleSave(error)) {
+      if (isFileProjectStaleSave(error) || backend?.hasPendingRecovery()) {
         setLocalSaveNeedsCopy(true);
         throw new Error(FILE_STALE_SAVE_MESSAGE);
       }
@@ -275,11 +303,12 @@ function AppContent() {
   };
 
   const handleDeleteChapters = async (chaptersToDelete: Chapter[]) => {
-    if (!backend) return;
+    if (!backend) throw new Error('Tracker backend is not ready.');
     try {
-      await backend.deleteChapters(chaptersToDelete, actorLabel);
+      const result = await backend.deleteChapters(chaptersToDelete, actorLabel);
+      if (result.kind !== 'ok') throw new Error('Nothing was deleted. A selected chapter changed; refresh and review it again.');
     } catch (error) {
-      if (isFileProjectStaleSave(error)) {
+      if (isFileProjectStaleSave(error) || backend?.hasPendingRecovery()) {
         setLocalSaveNeedsCopy(true);
         throw new Error(FILE_STALE_SAVE_MESSAGE);
       }
@@ -303,7 +332,7 @@ function AppContent() {
 
   const exportLocalData = async (format: 'csv' | 'json') => {
     const exportedAt = new Date().toISOString();
-    const filename = timestampedBackupFilename(exportedAt, format);
+    const filename = timestampedBackupFilename(format, new Date(exportedAt));
     let contents: string;
     let mimeType: string;
 
@@ -325,24 +354,94 @@ function AppContent() {
 
     const result = await saveLocalExport(filename, contents, mimeType);
     if (result.cancelled) return 'Export cancelled.';
-    if (format === 'json') setJsonBackupExportedAt(exportedAt);
+    if (format === 'json') { backupRevision.current = projectRevision; setJsonBackupExportedAt(exportedAt); }
     return result.filePath ? `Saved to ${result.filePath}` : 'Local export saved.';
   };
 
   const handleStartNewProject = async (nextProjectName: string) => {
-    if (!project || !backend) return;
+    if (!project || !backend) throw new Error('Tracker backend is not ready.');
+    if (!jsonBackupExportedAt || backupRevision.current !== projectRevision) throw new Error('Export a current JSON backup before starting a new project.');
     try {
       const input = { name: nextProjectName, expectedRevision: projectRevision };
-      const result = await backend.resetProjectWithAudit(input, actorLabel);
-      setProject(result.project);
+      const result = await backend.startNewProject(input, actorLabel);
+      setProject(result);
+      setJsonBackupExportedAt(null);
       setProjectSetupFocus(null);
-      return result.project;
+      return result;
     } catch (error) {
-      if (isFileProjectStaleSave(error)) {
+      if (isFileProjectStaleSave(error) || backend?.hasPendingRecovery()) {
         setLocalSaveNeedsCopy(true);
         throw new Error(FILE_STALE_SAVE_MESSAGE);
       }
       throw error;
+    }
+  };
+
+  const handleSaveAsAfterLocalStaleSave = async () => {
+    if (!backend) return;
+    setStorageBusy(true);
+    try {
+      const contents = backend.recoveryContents();
+      const result = await window.editorialTracker?.saveProjectFileAs?.(contents);
+      if (!result) throw new Error('Save As is unavailable.');
+      if (result.cancelled) return;
+      if (!result.fileToken || !result.hash) throw new Error('The conflict copy could not be opened.');
+      await backend.close(true);
+      await openLocalProject(actorLabel, contents, result.fileToken, result.hash);
+      setSetupMessage('Conflict copy saved and opened as a local project.');
+    } catch (error) {
+      setRuntimeError(error instanceof Error ? error.message : 'The conflict copy could not be saved.');
+    } finally {
+      setStorageBusy(false);
+    }
+  };
+
+  const handleCreateProject = async (nextProjectName: string) => {
+    if (!backend) throw new Error('Tracker backend is not ready.');
+    return backend.createInitialProject(nextProjectName, actorLabel);
+  };
+
+  const handleProjectChoice = (choice: 'import-csv-json' | 'restore-json-backup' | 'scan-existing-folder') => {
+    setProjectSetupFocus(choice === 'restore-json-backup' ? 'restore-json' : choice === 'scan-existing-folder' ? 'scan-folder' : 'import-csv-json');
+    setActiveTab('backups');
+  };
+
+  const handleForceUnlockSharedProject = async () => {
+    if (!sharedProjectFileToken) return;
+    setStorageBusy(true);
+    setRuntimeError(null);
+    try {
+      const result = await window.editorialTracker?.forceUnlockSharedProjectLock?.(
+        sharedProjectFileToken,
+        sharedInstanceId.current,
+        sharedForceUnlockText,
+      );
+      if (!result?.ok) throw new Error(result?.message || 'Shared project lock could not be released.');
+      if (!window.editorialTracker?.acquireSharedProjectLock) {
+        throw new Error('Shared lock service is unavailable.');
+      }
+      const lockResult = await window.editorialTracker.acquireSharedProjectLock(
+        sharedProjectFileToken,
+        actorLabel,
+        sharedInstanceId.current,
+      );
+      if (!lockResult.ok) {
+        const fallback = await window.editorialTracker.readSharedProjectLock?.(sharedProjectFileToken);
+        setSharedProjectCanEdit(false);
+        setSharedProjectLock(fallback?.ok ? fallback.lock ?? null : lockResult.lock ?? null);
+        throw new Error(lockResult.message || 'Another editor acquired the shared project lock.');
+      }
+      const sharedBackend = backend as typeof backend & { setCanEdit?: (value: boolean, message?: string) => void };
+      sharedBackend?.setCanEdit?.(true);
+      setSharedProjectCanEdit(true);
+      setSharedProjectLock(lockResult.lock ?? null);
+
+      setSharedForceUnlockText('');
+      setSetupMessage('Shared project unlocked and opened for editing.');
+    } catch (error) {
+      setRuntimeError(error instanceof Error ? error.message : 'Shared project lock could not be released.');
+    } finally {
+      setStorageBusy(false);
     }
   };
 
@@ -358,6 +457,11 @@ function AppContent() {
     contents: string,
     fileToken: string,
     initialHash?: string,
+    sharedOpenState?: {
+      canEdit: boolean;
+      sharedLock: { editorLabel: string; acquiredAt: string; heartbeatAt: string } | null;
+      message?: string;
+    },
   ) => {
     await closeCurrentBackend();
     setStorageKind(mode);
@@ -367,16 +471,24 @@ function AppContent() {
     let sharedLock: { editorLabel: string; acquiredAt: string; heartbeatAt: string } | null = null;
 
     if (mode === 'shared-folder') {
-      if (!window.editorialTracker?.acquireSharedProjectLock) {
-        throw new Error('Shared project locking API is unavailable.');
-      }
-      const lockResult = await window.editorialTracker.acquireSharedProjectLock(fileToken, editorLabel, sharedInstanceId.current);
-      if (!lockResult.ok) {
-        canEditShared = false;
-        if (lockResult.lock) sharedLock = lockResult.lock;
-        setRuntimeError(lockResult.message || 'Shared project acquired in read-only mode.');
+      if (sharedOpenState) {
+        canEditShared = sharedOpenState.canEdit;
+        sharedLock = sharedOpenState.sharedLock;
+        if (!sharedOpenState.canEdit && sharedOpenState.message) {
+          setRuntimeError(sharedOpenState.message);
+        }
       } else {
-        if (lockResult.lock) sharedLock = lockResult.lock;
+        if (!window.editorialTracker?.acquireSharedProjectLock) {
+          throw new Error('Shared project locking API is unavailable.');
+        }
+        const lockResult = await window.editorialTracker.acquireSharedProjectLock(fileToken, editorLabel, sharedInstanceId.current);
+        if (!lockResult.ok) {
+          canEditShared = false;
+          if (lockResult.lock) sharedLock = lockResult.lock;
+          setRuntimeError(lockResult.message || 'Shared project acquired in read-only mode.');
+        } else {
+          if (lockResult.lock) sharedLock = lockResult.lock;
+        }
       }
       setSharedProjectFileToken(fileToken);
       setSharedProjectLock(sharedLock);
@@ -403,7 +515,6 @@ function AppContent() {
         editorLabel,
         instanceId: sharedInstanceId.current,
         canEdit: canEditShared,
-        sharedLock,
         onOwnershipLost: (message) => markSharedOwnershipLost(message),
         fileApi: {
           verifySharedOwnership: (token, instanceId) => {
@@ -424,9 +535,7 @@ function AppContent() {
 
     setBackend(configuredBackend);
 
-    if (mode === 'shared-folder' && canEditShared) {
-      beginSharedHeartbeat(fileToken);
-    }
+
     return configuredBackend;
   };
 
@@ -516,10 +625,17 @@ function AppContent() {
         } else {
           setSetupMessage(lockResult.message);
         }
-        await openPortableBackend('shared-folder', editorLabel, result.contents, result.fileToken, opened.originalHash, false, sharedLock);
+        await openPortableBackend('shared-folder', editorLabel, result.contents, result.fileToken, opened.originalHash, {
+          canEdit: false,
+          sharedLock,
+          message: lockResult.message || 'Shared project acquired in read-only mode.',
+        });
         return;
       }
-      await openPortableBackend('shared-folder', editorLabel, result.contents, result.fileToken, opened.originalHash, true, lockResult.lock ?? null);
+      await openPortableBackend('shared-folder', editorLabel, result.contents, result.fileToken, opened.originalHash, {
+        canEdit: true,
+        sharedLock: lockResult.lock ?? null,
+      });
       setSetupMessage('Shared project opened for editing.');
       return;
     } catch (error) {
@@ -617,25 +733,12 @@ function AppContent() {
             <FileText className="w-5 h-5" />
             <span>Abstracts</span>
           </button>
-          {backend?.kind === 'firebase' && (
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                activeTab === 'users'
-                  ? 'bg-indigo-50 text-indigo-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              <Shield className="w-5 h-5" />
-              <span>Manage Team</span>
-            </button>
-          )}
           <button onClick={() => setActiveTab('activity')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'activity' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}><ClipboardList className="w-5 h-5" /><span>Activity</span></button>
           <button onClick={() => setActiveTab('backups')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'backups' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}><FileText className="w-5 h-5" /><span>Backups & intake</span></button>
         </nav>
         <div className="p-4 border-t border-gray-100 space-y-2">
           <button
-            onClick={logout}
+            onClick={() => { void closeCurrentBackend().catch(error => setRuntimeError(error instanceof Error ? error.message : 'The project could not be closed.')); }}
             className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <LogOut className="w-4 h-4" />
@@ -647,16 +750,10 @@ function AppContent() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="px-6 pt-3 text-xs text-gray-500" role="status">{refreshFailed ? <span>Data could not refresh - <button className="font-medium text-indigo-700 underline" onClick={() => { setIsLoading(true); setListenerAttempt(value => value + 1); }}>Try again</button></span> : lastRefresh ? `Last refreshed ${lastRefresh}` : 'Loading live data...'}</div>
-        {isFileMode && localSaveNeedsCopy && (
+        {localSaveNeedsCopy && (
           <div className="px-6 pt-3">
             <p className="text-sm text-red-700">{FILE_STALE_SAVE_MESSAGE}</p>
-            <button
-              onClick={() => void handleSaveAsAfterLocalStaleSave()}
-              disabled={storageBusy}
-              className="mt-2 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-            >
-              Save As conflict copy
-            </button>
+            <button onClick={() => void handleSaveAsAfterLocalStaleSave()} disabled={storageBusy} className="mt-2 rounded border px-3 py-2">Save As conflict copy</button>
           </div>
         )}
         {isSharedMode && !sharedProjectCanEdit && sharedProjectLock && (
@@ -688,18 +785,17 @@ function AppContent() {
           <>
             {activeTab === 'project' && <ProjectHelpView
               project={project}
-              userRole={currentRole}
               chapterCount={chapters.length}
-              stageRecordCount={stageCount}
-              jsonBackupExportedAt={jsonBackupExportedAt}
-              storageMode={storageKind ?? 'firebase'}
+              stageRecordCount={chapters.reduce((total, chapter) => total + (chapter.submissions?.length ?? 0), 0)}
+              jsonBackupExportedAt={jsonBackupExportedAt ?? ''}
+              storageMode={storageKind ?? 'local-file'}
               sharedFolderMessage={sharedProjectLock ? `Shared-folder lock held by ${sharedProjectLock.editorLabel} since ${new Date(sharedProjectLock.acquiredAt).toLocaleString()}.` : ''}
-              onCreateProject={handleSetProject}
+              onCreateProject={handleCreateProject}
               onStartNewProject={handleStartNewProject}
-              onChoose={(choice) => handleProjectChoice(choice === 'import-csv-json' ? 'import-csv-json' : choice === 'restore-json-backup' ? 'restore-json' : 'scan-folder')}
+              onChoose={handleProjectChoice}
             />}
             {activeTab === 'dashboard' && <Dashboard chapters={chapters} project={project} />}
-            {activeTab === 'chapters' && <ChapterList chapters={chapters} projectName={project?.name ?? 'Compiled manuscript'} onEdit={setEditingChapter} onBatchUpdate={handleBatchUpdate} onCreate={handleCreateChapters} onDelete={handleDeleteChapter} canEdit={canEdit} canDelete={canDelete} />}
+            {activeTab === 'chapters' && <ChapterList chapters={chapters} projectName={project?.name ?? 'Compiled manuscript'} onEdit={setEditingChapter} onBatchUpdate={handleBatchUpdateChapterFields} onCreate={handleCreateChapters} onDelete={handleDeleteChapters} canEdit={canEdit} canDelete={canDelete} />}
             {activeTab === 'tasks' && <TasksView chapters={chapters} />}
             {activeTab === 'bios' && <BiosView chapters={chapters} />}
             {activeTab === 'abstracts' && <AbstractsView chapters={chapters} />}
@@ -712,8 +808,8 @@ function AppContent() {
             {activeTab === 'backups' && <BackupIntakeView
               chapters={chapters}
               onCreate={handleCreateChapters}
-              onExport={handleExportBackup}
-              onApplyProject={handleApplyProject}
+              onExport={exportLocalData}
+              onApplyProject={handleApplyProjectImport}
               onViewChapters={() => setActiveTab('chapters')}
               userEmail={actorLabel}
               canEdit={canEdit}
@@ -731,7 +827,7 @@ function AppContent() {
           onSave={handleSaveChapter}
           onAppendStageRecord={handleAppendStageRecord}
           onVoidStageRecord={handleVoidStageRecord}
-          userEmail={user?.email}
+          userEmail={actorLabel}
           canEdit={canEdit}
         />
       )}
@@ -742,8 +838,13 @@ function AppContent() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <div className="app-titlebar" aria-hidden="true" />
-      <AppContent />
+      <div className="min-h-screen pb-8">
+        <div className="app-titlebar" aria-hidden="true" />
+        <AppContent />
+      </div>
+      <footer className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-4 py-2 text-center text-xs font-medium tracking-wide text-slate-600 backdrop-blur" aria-label="Application credit">
+        Built by Ali Mozaffari, 2026
+      </footer>
     </ErrorBoundary>
   );
 }

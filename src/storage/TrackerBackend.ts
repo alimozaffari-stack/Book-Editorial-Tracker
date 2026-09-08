@@ -26,5 +26,7 @@ export interface TrackerBackend {
   createChapters(chapters: Chapter[], actor: string, source: string): Promise<{ created: string[]; skipped: string[] }>;
   deleteChapters(chapters: Chapter[], actor: string): Promise<WriteResult>;
   startNewProject(input: ReviewedResetInput, actor: string): Promise<ProjectState>;
-  close(): Promise<void>;
+  recoveryContents(): string;
+  hasPendingRecovery(): boolean;
+  close(recoverySaved?: boolean): Promise<void>;
 }

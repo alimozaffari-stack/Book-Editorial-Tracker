@@ -1,40 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createInitialProject } from '../src/utils/projectWrites';
+import { LocalFileTrackerBackend } from '../src/storage/LocalFileTrackerBackend';
+import { parsePortableProjectFile, serializePortableProjectFile } from '../src/storage/projectFileFormat';
 import { isActivityAfterProjectStart, validateProjectState } from '../src/domain/projectState';
-import * as wrapper from '../src/utils/firestoreWrapper';
-
-let mockStore: Record<string, any> = {};
-let eventSequence = 0;
-
-wrapper.setFirestoreReferenceResolversForTest(
-  (_db, chapterId) => ({ id: chapterId } as any),
-  () => ({ id: `event-${++eventSequence}` } as any),
-  () => ({ id: 'ignore' } as any),
-  () => ({ id: 'ignore' } as any),
-  () => ({ id: 'teamState-project' } as any),
-);
-
-wrapper.setRunTransaction(async (db: any, fn: (tx: any) => Promise<any>) => {
-  const transaction = {
-    async get(ref: any) {
-      const data = mockStore[ref.id];
-      return {
-        exists: () => data !== undefined,
-        data: () => data,
-      };
-    },
-    set(ref: any, data: any) {
-      mockStore[ref.id] = data;
-    },
-  };
-  return fn(transaction);
-});
-
-function resetMockStore() {
-  mockStore = {};
-  eventSequence = 0;
-}
 
 test('validates a staged project name and timestamps', () => {
   const candidate = {
@@ -93,15 +61,33 @@ test('checks event cutoff against project start', () => {
 });
 
 test('createInitialProject writes project and matching initial activity event', async () => {
-  resetMockStore();
-  const project = await createInitialProject({} as any, 'Public beta', 'admin@example.com');
-  assert.equal(mockStore['teamState-project'].name, 'Public beta');
-  assert.equal(mockStore['teamState-project'].generationId.length, project.generationId.length);
-  const events = Object.keys(mockStore).filter(key => key.startsWith('event-'));
-  assert.equal(events.length, 1);
-  const event = mockStore[events[0]];
+  const timestamp = '2026-01-01T00:00:00.000Z';
+  let contents = serializePortableProjectFile({
+    format: 'book-editorial-tracker-project', version: 1, projectRevision: 0,
+    savedAt: timestamp, savedBy: 'Editor',
+    project: { name: 'Draft', generationId: 'draft', startedAt: timestamp, updatedAt: timestamp, startedBy: 'Editor' },
+    chapters: [], activity: [],
+  });
+  let writes = 0;
+  const backend = new LocalFileTrackerBackend({
+    fileToken: 'test-token', initialHash: 'initial-hash', editorLabel: 'Editor', contents,
+    fileApi: { async saveProjectFile(token, expectedHash, nextContents) {
+      assert.equal(token, 'test-token');
+      assert.equal(expectedHash, 'initial-hash');
+      contents = nextContents;
+      writes += 1;
+      return { ok: true, hash: 'saved-hash', message: 'Saved' };
+    } },
+  });
+  const project = await backend.createInitialProject(' Release project ', 'Editor');
+  const saved = parsePortableProjectFile(contents);
+  assert.equal(saved.project.name, 'Release project');
+  assert.equal(saved.project.generationId, project.generationId);
+  assert.equal(saved.activity.length, 1);
+  const event = saved.activity[0];
   assert.equal(event.action, 'project-started');
   assert.equal(event.summary, `Project started: ${project.name}`);
-  assert.equal(event.clientAt, project.startedAt);
-  await assert.rejects(() => createInitialProject({} as any, 'Project two', 'admin@example.com'));
+  assert.ok(isActivityAfterProjectStart(event.clientAt, project));
+  await assert.rejects(() => backend.createInitialProject('Project two', 'Editor'), /already named/);
+  assert.equal(writes, 1, 'Repeat initialization must not overwrite the project');
 });

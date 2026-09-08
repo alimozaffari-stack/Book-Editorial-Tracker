@@ -8,23 +8,24 @@ const changelog = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf
 const releasing = readFileSync(new URL('../docs/RELEASING.md', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
 
-test('public beta docs describe the current release and storage boundaries', () => {
+test('release docs describe the current version and local/shared storage boundaries', () => {
   assert.ok(existsSync(new URL('../LICENSE', import.meta.url)));
   assert.match(readme, new RegExp(`Version ${packageJson.version.replace(/\./g, '\\.')}`));
   assert.match(readme, /Local project file: one editor at a time\./);
   assert.match(readme, /Shared-folder project: one editor at a time; later conflicting saves are blocked, not merged\./);
-  assert.match(readme, /Firebase team: live collaboration using the user'?s own Firebase project\./i);
+  assert.doesNotMatch(readme, /Firebase team: live collaboration|To use Firebase team mode/i);
   assert.match(readme, /selected source documents\/folders are never edited, renamed, moved, or deleted/i);
-  assert.match(readme, /public installer contains no owner Firebase configuration/i);
+  assert.match(readme, /no owner Firebase configuration/i);
 });
 
 test('release docs include checklist commands and current changelog themes', () => {
-  assert.match(releasing, /cmd \/c npm test/);
-  assert.match(releasing, /cmd \/c npm run lint/);
-  assert.match(releasing, /cmd \/c npm run build:public/);
+  assert.match(releasing, /npm test/);
+  assert.match(releasing, /npm run lint/);
+  assert.match(releasing, /npm run build:public/);
   assert.match(releasing, /node --test tests\/publicPackageArchive\.test\.mjs/);
   assert.match(releasing, /git diff --check/);
   assert.match(releasing, /app\.asar/i);
+  assert.match(releasing, /BET_PUBLIC_ASAR_PATH/);
   assert.match(changelog, new RegExp(`## ${packageJson.version.replace(/\./g, '\\.')}`));
   assert.match(changelog, /scan-based chapter inventory creation/i);
   assert.match(changelog, /public-package Firebase-boundary protection/i);

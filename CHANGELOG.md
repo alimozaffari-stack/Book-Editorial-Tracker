@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Prepared a portable-only Windows release package at `out\portable-exe\public-release-20260827-clean\Book Editorial Tracker-win32-x64` and documented that the public release path is currently portable, not installer-based.
+- Documented the existing-project open fix and the persistent in-app credit `Built by Ali Mozaffari, 2026`.
+- Documented the release boundary that excludes project files, lock files, logs, `user-data`, and token residue from any distributable package.
+
 ## 0.2.0 - 2026-08-24
 
 ### Changed
