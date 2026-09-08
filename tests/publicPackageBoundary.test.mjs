@@ -23,12 +23,9 @@ const ROOT = new URL('..', import.meta.url);
 test('public package boundary rejects owner project identity and secrets in public packaging artifacts', () => {
   const packageJson = JSON.parse(readFileSync(new URL('package.json', ROOT), 'utf8'));
   const forgeConfig = readFileSync(new URL('forge.config.js', ROOT), 'utf8');
-  const setupSource = readFileSync(new URL('src/components/FirebaseSetupView.tsx', ROOT), 'utf8');
+  const chooserSource = readFileSync(new URL('src/components/StorageModeChooser.tsx', ROOT), 'utf8');
   const appSource = readFileSync(new URL('src/App.tsx', ROOT), 'utf8');
   const mainSource = readFileSync(new URL('electron/main.cjs', ROOT), 'utf8');
-  const ownerConfig = JSON.parse(readFileSync(new URL('firebase-applet-config.json', ROOT), 'utf8'));
-  const ownerProjectId = ownerConfig.projectId;
-  const ownerApiKey = ownerConfig.apiKey;
   const ownerEmail = 'ali0mozaffari@gmail.com';
 
   assert.equal(packageJson.scripts['build:public'], 'set VITE_APP_VARIANT=public&&vite build');
@@ -38,12 +35,9 @@ test('public package boundary rejects owner project identity and secrets in publ
     forgeConfig,
     /process\.env\.VITE_APP_VARIANT === 'public'[\s\S]*firebase-applet-config\\.json\$/i,
   );
-  assert.match(setupSource, /Set up your own Firebase project/);
-  assert.match(setupSource, /enable Firebase Authentication and Firestore/i);
-  assert.match(setupSource, /deploy the supplied Firestore rules yourself/i);
-
-  assertNoSecretTokens(appSource, ownerProjectId, 'owner project id');
-  assertNoSecretTokens(appSource, ownerApiKey, 'owner api key');
+  assert.doesNotMatch(chooserSource, /Firebase|Google Drive|Sign in/i);
+  assert.doesNotMatch(appSource, /from\s+['"][^'"]*(?:firebase|FirebaseSetupView|GDriveSyncView)/);
+  assert.doesNotMatch(appSource + mainSource, /AIza[0-9A-Za-z_-]{35}|-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/);
   assertNoSecretTokens(appSource, ownerEmail, 'owner email');
   assertNoSecretTokens(appSource, 'firebase-applet-config.json', 'forbidden config filename');
   assert.doesNotMatch(mainSource, /require\('\.\.\/firebase-applet-config\.json'\)/);

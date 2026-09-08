@@ -142,10 +142,19 @@ ipcMain.handle('choose-shared-project-file', async () => projectFilePolicy().cho
 ipcMain.handle('save-project-file', async (_event, payload) => projectFilePolicy().saveProjectFile(payload?.fileToken, payload?.expectedHash, payload?.contents));
 ipcMain.handle('save-project-file-as', async (_event, contents) => projectFilePolicy().saveProjectFileAs(contents));
 ipcMain.handle('save-shared-project-file-as', async (_event, contents) => projectFilePolicy().saveSharedProjectFileAs(contents));
-ipcMain.handle('acquire-shared-project-lock', async (_event, fileToken, editorLabel, instanceId) => sharedProjectLockPolicy().acquireSharedProjectLock(fileToken, editorLabel, instanceId));
+const acquiredSharedLocks = new Map();
+ipcMain.handle('acquire-shared-project-lock', async (_event, fileToken, editorLabel, instanceId) => {
+  const result = await sharedProjectLockPolicy().acquireSharedProjectLock(fileToken, editorLabel, instanceId);
+  if (result.ok) acquiredSharedLocks.set(`${fileToken}:${instanceId}`, { fileToken, instanceId });
+  return result;
+});
 ipcMain.handle('heartbeat-shared-project-lock', async (_event, fileToken, instanceId) => sharedProjectLockPolicy().heartbeatSharedProjectLock(fileToken, instanceId));
 ipcMain.handle('verify-shared-project-lock', async (_event, fileToken, instanceId) => sharedProjectLockPolicy().verifySharedProjectLock(fileToken, instanceId));
-ipcMain.handle('release-shared-project-lock', async (_event, fileToken, instanceId) => sharedProjectLockPolicy().releaseSharedProjectLock(fileToken, instanceId));
+ipcMain.handle('release-shared-project-lock', async (_event, fileToken, instanceId) => {
+  const result = await sharedProjectLockPolicy().releaseSharedProjectLock(fileToken, instanceId);
+  if (result.ok) acquiredSharedLocks.delete(`${fileToken}:${instanceId}`);
+  return result;
+});
 ipcMain.handle('read-shared-project-lock', async (_event, fileToken) => sharedProjectLockPolicy().readSharedProjectLock(fileToken));
 ipcMain.handle('force-unlock-shared-project-lock', async (_event, fileToken, instanceId, confirmationText) => sharedProjectLockPolicy().forceUnlockSharedProjectLock(fileToken, instanceId, confirmationText));
 ipcMain.handle('save-shared-project-file', async (_event, payload) => sharedProjectLockPolicy().saveSharedProjectFile(
@@ -157,7 +166,20 @@ ipcMain.handle('save-shared-project-file', async (_event, payload) => sharedProj
 ));
 
 const productName = 'Book Editorial Tracker';
+const isPortableBuild = /[\\/]portable-exe[\\/]?/i.test(process.execPath);
+const shouldSkipSingleInstance =
+  process.argv.includes('--disable-single-instance')
+  || process.env.BET_DISABLE_SINGLE_INSTANCE === '1';
+const portableUserDataDir = path.join(path.dirname(process.execPath), 'user-data');
+
+if (isPortableBuild) {
+  app.setPath('userData', portableUserDataDir);
+}
+
 app.setName(productName);
+if (process.platform === 'win32') {
+  app.disableHardwareAcceleration();
+}
 let localAppServer;
 
 ipcMain.handle('save-local-export', async (_event, payload) => {
@@ -475,7 +497,7 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
   }
     const window = new BrowserWindow({
     title: productName,
-    icon: path.join(__dirname, '..', 'dist', 'editorial-review-tracker-mark.png'),
+    icon: path.join(__dirname, '..', 'assets', 'editorial-review-tracker.ico'),
     titleBarStyle: 'hidden',
     titleBarOverlay: {
       color: '#f9fafb',
@@ -521,15 +543,21 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
     }
   });
     if (!localAppServer) {
-      // Start the local server on a stable origin (127.0.0.1:43119).
-      localAppServer = await startLocalAppServer(inputPath, log);
+      // Local/shared data uses files; an assigned loopback port permits isolated instances.
+      localAppServer = await startLocalAppServer(inputPath, log, 0);
     }
     await window.loadURL(localAppServer.url);
   log(`startup_complete input=${inputPath} origin=${localAppServer.url} windows=1 failures=0`);
 }
 
-  if (!handleSquirrelEvent()) {
-    // Enforce single-instance lock for the Electron app.
+if (!handleSquirrelEvent()) {
+  const launch = () => {
+    Menu.setApplicationMenu(null);
+    createWindow();
+    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+  };
+
+  if (!shouldSkipSingleInstance) {
     const gotLock = app.requestSingleInstanceLock();
     if (!gotLock) {
       app.quit();
@@ -542,19 +570,32 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
         windows[0].focus();
       }
     });
-
-    app.whenReady().then(() => {
-      Menu.setApplicationMenu(null);
-      createWindow();
-      app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
-    }).catch(error => {
-      log(`startup_failed error=${error instanceof Error ? error.message : String(error)}`);
-      app.quit();
-    });
   }
+
+  app.whenReady().then(() => {
+    launch();
+  }).catch(error => {
+    log(`startup_failed error=${error instanceof Error ? error.message : String(error)}`);
+    app.quit();
+  });
+}
 
 app.on('before-quit', () => {
   if (localAppServer) localAppServer.server.close();
+});
+
+let releasingLocksOnQuit = false;
+app.on('will-quit', event => {
+  if (releasingLocksOnQuit || acquiredSharedLocks.size === 0) return;
+  event.preventDefault();
+  releasingLocksOnQuit = true;
+  // The policy verifies ownership before removing any lock, including one stolen
+  // or reacquired by another process since this instance opened the file.
+  void Promise.allSettled([...acquiredSharedLocks.values()].map(({ fileToken, instanceId }) =>
+    sharedProjectLockPolicy().releaseSharedProjectLock(fileToken, instanceId),
+  // Defer until Electron has unwound the cancelled will-quit event. Calling
+  // quit from a promise microtask here can leave the process in quitting state.
+  )).finally(() => setImmediate(() => app.quit()));
 });
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

@@ -16,20 +16,23 @@
     "clean": "rm -rf dist",
     "test:activity-view": "node --import tsx --test tests/activityView.test.ts",
     "test:backend-contract": "node --import tsx --test tests/backendContract.test.ts",
-    "test": "node --import tsx --test tests/activityView.test.ts tests/backendContract.test.ts tests/backupExport.test.ts tests/backupImport.test.ts tests/chapterImport.test.ts tests/chapterImportPlan.test.ts tests/chapterInventoryPlan.test.ts tests/chapterProgress.test.ts tests/chapterStageHistory.test.ts tests/docxInspection.test.ts tests/forgeConfig.test.mjs tests/localServer.test.cjs tests/manuscriptCompiler.test.ts tests/manuscriptExport.test.cjs tests/preloadApi.test.cjs tests/projectFileFormat.test.ts tests/projectFilePolicy.test.cjs tests/projectFolderScan.test.ts tests/projectImportPlan.test.ts tests/referencePath.test.ts tests/releaseDocs.test.mjs tests/rendererStartup.test.ts tests/sharedProjectLock.test.cjs tests/stageIntake.test.ts tests/stageSourcePolicy.test.cjs tests/submissionUtils.test.ts",
+    "test": "node --import tsx --test tests/activityView.test.ts tests/backendContract.test.ts tests/backupExport.test.ts tests/backupImport.test.ts tests/chapterImport.test.ts tests/chapterImportPlan.test.ts tests/chapterInventoryPlan.test.ts tests/chapterProgress.test.ts tests/chapterStageHistory.test.ts tests/docxInspection.test.ts tests/errorBoundary.test.tsx tests/forgeConfig.test.mjs tests/localServer.test.cjs tests/manuscriptCompiler.test.ts tests/manuscriptExport.test.cjs tests/preloadApi.test.cjs tests/projectFileFormat.test.ts tests/projectFilePolicy.test.cjs tests/projectFolderScan.test.ts tests/projectImportPlan.test.ts tests/projectPathPolicy.test.cjs tests/projectState.test.ts tests/publicPackageBoundary.test.mjs tests/recoveryPersistence.test.ts tests/referencePath.test.ts tests/releaseDocs.test.mjs tests/rendererStartup.test.ts tests/roleAccess.test.ts tests/sharedProjectLock.test.cjs tests/stageIntake.test.ts tests/stageSourceActions.test.ts tests/stageSourcePolicy.test.cjs tests/storageChoiceFlow.test.ts tests/submissionUtils.test.ts",
     "lint": "tsc --noEmit",
     "prestart": "npm run build",
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make:team": "set VITE_APP_VARIANT=team&&electron-forge make",
     "make:public": "set VITE_APP_VARIANT=public&&electron-forge make",
+    "make:public:zip": "set VITE_APP_VARIANT=public&&set BET_MAKE_PROFILE=zip-only&&node_modules\\.bin\\electron-forge.cmd make",
+    "make:public:installer": "set VITE_APP_VARIANT=public&&set BET_MAKE_PROFILE=squirrel&&node_modules\\.bin\\electron-forge.cmd make",
+    "make:public:installer:legacy": "set VITE_APP_VARIANT=public&&set BET_MAKE_PROFILE=squirrel-no-asar&&node_modules\\.bin\\electron-forge.cmd make",
+    "make:public:portable-exe": "set VITE_APP_VARIANT=public&&node scripts/make-portable-exe.mjs",
     "premake": "npm run build",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "test:package": "node --test tests/publicPackageArchive.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
-    "@tailwindcss/vite": "^4.1.14",
-    "@vitejs/plugin-react": "^5.0.4",
     "better-sqlite3": "^12.4.1",
     "dotenv": "^17.2.3",
     "electron-squirrel-startup": "^1.0.1",
@@ -40,8 +43,7 @@
     "motion": "^12.23.24",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "recharts": "^3.9.2",
-    "vite": "^6.2.0"
+    "recharts": "^3.9.2"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.2",

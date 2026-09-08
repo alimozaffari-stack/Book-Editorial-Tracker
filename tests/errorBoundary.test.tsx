@@ -165,7 +165,10 @@ test('ErrorBoundary catches render errors and renders a safe fallback without se
   const root = createRoot(container);
 
   const origConsoleError = console.error;
-  console.error = () => {};
+  const consoleErrors: string[] = [];
+  console.error = (...messages: unknown[]) => {
+    consoleErrors.push(messages.map(message => message instanceof Error ? message.message : String(message)).join(' '));
+  };
 
   try {
     flushSync(() => {
@@ -175,6 +178,7 @@ test('ErrorBoundary catches render errors and renders a safe fallback without se
         </ErrorBoundary>
       );
     });
+    await new Promise(resolve => setTimeout(resolve, 0));
   } finally {
     console.error = origConsoleError;
   }
@@ -189,6 +193,9 @@ test('ErrorBoundary catches render errors and renders a safe fallback without se
   assert.ok(!html.includes('.tsx'));
   assert.ok(!html.includes('firebase'));
   assert.ok(!html.includes('google'));
+  // React's development renderer may report caught errors itself. The application
+  // boundary must not add its own raw exception/stack logging.
+  assert.ok(!consoleErrors.some(message => message.includes('renderer_startup_error')));
 
   flushSync(() => {
     root.unmount();

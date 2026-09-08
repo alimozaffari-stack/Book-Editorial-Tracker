@@ -40,24 +40,6 @@ function inventoryChapter(id: string, title = `Title ${id}`, contributorName = `
   };
 }
 
-function makeFirebaseDb(name: string): Firestore {
-  const app = initializeApp({
-    apiKey: 'test-key',
-    authDomain: 'example.test',
-    projectId: 'book-editorial-tracker-tests',
-    appId: '1:1234567890:web:test',
-  }, name);
-  return getFirestore(app);
-}
-
-
-
-
-
-
-
-
-
 test('LocalFileTrackerBackend creates, saves, reopens, edits, and saves synthetic local project data', async () => {
   const project: ProjectState = { name: 'Local Project', generationId: 'g1', startedAt: '2026-01-01T00:00:00.000Z', startedBy: 'tester', updatedAt: '2026-01-01T00:00:00.000Z' };
   const initial: PortableProjectFile = {
