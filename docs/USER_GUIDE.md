@@ -210,7 +210,7 @@ Deletion is available only when editing is permitted. Treat deletion as a contro
 
 Combined Word export copies source DOCX structure, including tables, ordered and bullet lists, embedded images, footnotes and endnotes, while keeping source files unchanged. It uses file-based OOXML processing, not Microsoft Word automation or Normal.dotm. Unsupported structures (such as altChunk, picture-bullet numbering or externally linked media) cause an explicit error rather than silent text-only conversion. For exact, separate chapter documents use the **Latest source files** ZIP export.
 
-Only active, locally available source documents in the selected stages can contribute to the compiled file.
+Only active, locally available source documents in the selected stages can contribute to the compiled file. Combined Word export requires clean manuscripts and templates: documents containing editorial comments are rejected rather than merged.
 
 ## Chapter detail and stage history
 
