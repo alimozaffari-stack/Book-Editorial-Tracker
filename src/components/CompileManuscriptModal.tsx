@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Download, X } from 'lucide-react';
 import type { Chapter, ChapterStage } from '../types';
 import {
@@ -19,6 +19,8 @@ export default function CompileManuscriptModal({ chapters, projectName, onClose 
   const [selectedStages, setSelectedStages] = useState<Set<ChapterStage>>(() => new Set(defaultCompilerStages));
   const [includeAbstracts, setIncludeAbstracts] = useState(true);
   const [includeMetadata, setIncludeMetadata] = useState(true);
+  const [templateFile, setTemplateFile] = useState<File | null>(null);
+  const templateInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [savedPath, setSavedPath] = useState('');
@@ -59,6 +61,9 @@ export default function CompileManuscriptModal({ chapters, projectName, onClose 
       const request = buildCompileManuscriptRequest(
         chapters, projectName, format, selectedStages, includeAbstracts, includeMetadata,
       );
+      if (format === 'docx' && templateFile) {
+        request.template = { fileName: templateFile.name, bytes: new Uint8Array(await templateFile.arrayBuffer()) };
+      }
       const result = await window.editorialTracker.compileManuscript(request);
       if (result.cancelled) {
         setMessage('Save cancelled.');
@@ -102,6 +107,32 @@ export default function CompileManuscriptModal({ chapters, projectName, onClose 
             </div>
           </fieldset>
 
+          {format === 'docx' && (
+            <div className="rounded-lg border border-gray-200 p-4">
+              <p className="text-sm font-semibold text-gray-900">Word template (optional)</p>
+              <input ref={templateInput} type="file" accept=".docx,.dotx" className="hidden" onChange={event => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                event.target.value = '';
+                if (!/\\.(docx|dotx)$/i.test(file.name) || file.size > 25 * 1024 * 1024 || file.size < 100) {
+                  setMessage('Choose a .docx or .dotx template smaller than 25 MiB. Macro-enabled templates are not supported.');
+                  return;
+                }
+                setTemplateFile(file);
+                setMessage('');
+              }} />
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <button type="button" disabled={busy} onClick={() => templateInput.current?.click()} className="rounded-lg border px-3 py-2 text-sm">
+                  Choose template
+                </button>
+                {templateFile && <>
+                  <span className="text-sm text-gray-700">{templateFile.name}</span>
+                  <button type="button" disabled={busy} onClick={() => setTemplateFile(null)} className="text-sm underline">Remove</button>
+                </>}
+              </div>
+              <p className="mt-2 text-xs text-gray-600">Applies only to the generated document. Source files are not changed. Word automation and Normal.dotm are not used.</p>
+            </div>
+          )}
           <fieldset>
             <legend className="mb-3 text-sm font-semibold text-gray-900">Eligible source stages</legend>
             <div className="grid gap-2 sm:grid-cols-2">
