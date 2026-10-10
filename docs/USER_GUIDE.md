@@ -203,10 +203,12 @@ Deletion is available only when editing is permitted. Treat deletion as a contro
 1. Open **Chapters**.
 2. Select **Compile manuscript**.
 3. Choose one of the offered output formats.
-4. Select the eligible source stages to include.
-5. Optionally include chapter abstracts and chapter/source metadata.
-6. Run the compile action.
-7. Use **Show saved file** to open the output folder.
+4. For **Combined Word document**, optionally select a local .docx or .dotx template. The template supplies styles and page settings, not sample body text. Macro-enabled templates (.dotm) are not accepted.
+5. Select the eligible source stages to include.
+6. Optionally include chapter abstracts and chapter/source metadata.
+7. Run the compile action and use **Show saved file** to locate it.
+
+Combined Word export copies source DOCX structure, including tables, ordered and bullet lists, embedded images, footnotes and endnotes, while keeping source files unchanged. It uses file-based OOXML processing, not Microsoft Word automation or Normal.dotm. Unsupported structures (such as altChunk, picture-bullet numbering or externally linked media) cause an explicit error rather than silent text-only conversion. For exact, separate chapter documents use the **Latest source files** ZIP export.
 
 Only active, locally available source documents in the selected stages can contribute to the compiled file.
 

@@ -402,6 +402,17 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
       throw new Error('The manuscript compiler request is invalid.');
     }
     const options = { includeAbstracts: request.includeAbstracts === true, includeMetadata: request.includeMetadata === true };
+    if (request.template !== undefined) {
+      const name = request.template?.fileName;
+      const data = request.template?.bytes;
+      if (request.format !== 'docx' || typeof name !== 'string'
+        || !/^[^\\/]{1,255}\.(docx|dotx)$/i.test(name)
+        || !(data instanceof Uint8Array) || data.byteLength < 100 || data.byteLength > 25 * 1024 * 1024) {
+        throw new Error('Choose a .docx or .dotx template smaller than 25 MiB. Macro-enabled templates are excluded.');
+      }
+      options.templateBytes = Buffer.from(data);
+    }
+    let combinedSourceBytes = options.templateBytes?.byteLength || 0;
     const sections = [];
     const sources = [];
     for (const chapter of request.chapters) {
@@ -417,6 +428,9 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
       });
       if (!resolved.ok) throw new Error(`${chapter.id}: ${resolved.message}`);
       const bytes = fs.readFileSync(resolved.filePath);
+      if (request.format === 'docx' && (combinedSourceBytes += bytes.length) > 256 * 1024 * 1024) {
+        throw new Error('The combined Word sources exceed the 256 MiB safety limit.');
+      }
       const section = {
         id: compilerText(chapter.id, 100),
         title: compilerText(chapter.title, 500),
@@ -430,7 +444,8 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
           ? `Revision ${String(source.roundNumber ?? 1).padStart(2, '0')}`
           : source.stage.replace(/-/g, ' ').replace(/^./, character => character.toUpperCase()),
         effectiveOn: compilerText(source.effectiveOn, 10),
-        paragraphs: request.format === 'zip' ? [] : await extractDocxText(bytes),
+        paragraphs: request.format === 'md' ? await extractDocxText(bytes) : [],
+        sourceBytes: request.format === 'docx' ? bytes : undefined,
       };
       sections.push(section);
       sources.push({ section, sourceFileName: source.sourceFileName || path.basename(resolved.filePath), bytes });

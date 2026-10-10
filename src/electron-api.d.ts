@@ -24,6 +24,7 @@ interface CompileManuscriptRequest {
   projectName: string;
   includeAbstracts: boolean;
   includeMetadata: boolean;
+  template?: { fileName: string; bytes: Uint8Array };
   chapters: CompileManuscriptChapter[];
 }
 
