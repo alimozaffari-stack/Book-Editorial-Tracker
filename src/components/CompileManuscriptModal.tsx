@@ -114,7 +114,7 @@ export default function CompileManuscriptModal({ chapters, projectName, onClose 
                 const file = event.target.files?.[0];
                 if (!file) return;
                 event.target.value = '';
-                if (!/\\.(docx|dotx)$/i.test(file.name) || file.size > 25 * 1024 * 1024 || file.size < 100) {
+                if (!/\.(docx|dotx)$/i.test(file.name) || file.size > 25 * 1024 * 1024 || file.size < 100) {
                   setMessage('Choose a .docx or .dotx template smaller than 25 MiB. Macro-enabled templates are not supported.');
                   return;
                 }
