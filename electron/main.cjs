@@ -406,7 +406,7 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
       const name = request.template?.fileName;
       const data = request.template?.bytes;
       if (request.format !== 'docx' || typeof name !== 'string'
-        || !/^[^\\/]{1,255}\\.(docx|dotx)$/i.test(name)
+        || !/^[^\\/]{1,255}\.(docx|dotx)$/i.test(name)
         || !(data instanceof Uint8Array) || data.byteLength < 100 || data.byteLength > 25 * 1024 * 1024) {
         throw new Error('Choose a .docx or .dotx template smaller than 25 MiB. Macro-enabled templates are excluded.');
       }
