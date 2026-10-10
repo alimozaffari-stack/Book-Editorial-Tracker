@@ -50,7 +50,15 @@ function innerBody(text) {
 }
 
 function trailingSection(body) {
-  return /(<w:sectPr\b[\s\S]*?<\/w:sectPr>|<w:sectPr\b[^>]*\/>)(?:\s*)$/.exec(body)?.[1] || '';
+  const positions = [...body.matchAll(/<w:sectPr\b/g)];
+  if (!positions.length) return '';
+  const tail = body.slice(positions[positions.length - 1].index);
+  return /^(<w:sectPr\b[^>]*>[\s\S]*?<\/w:sectPr>|<w:sectPr\b[^>]*\/>)\s*$/.exec(tail)?.[1] || '';
+}
+
+function withoutTrailingSection(body) {
+  const section = trailingSection(body);
+  return section ? body.slice(0, body.lastIndexOf(section)).trimEnd() : body;
 }
 
 function mergeNamespaces(destination, incoming, rootName) {
@@ -220,8 +228,12 @@ async function combineDocx(templateOrBaseBytes, scaffoldXml, sourceChapters) {
   }
   let document = await xml(output, 'word/document.xml');
   rootOpen(document, 'document');
+  if (Object.keys(output.files).some(name => /^word\/comments[^/]*\.xml$/i.test(name))
+    || /<w:comment(?:Reference|RangeStart|RangeEnd)\b/.test(document)) {
+    throw new Error('Choose a clean Word template without review annotations.');
+  }
   let body = innerBody(scaffoldXml);
-  body = body.replace(/<w:sectPr\b[\s\S]*?<\/w:sectPr>\s*$/, '');
+  body = withoutTrailingSection(body);
   const baseSection = trailingSection(innerBody(document));
   let styles = await xml(output, 'word/styles.xml', false) || simpleRoot('styles');
   let numbering = await xml(output, 'word/numbering.xml', false) || simpleRoot('numbering');
@@ -250,6 +262,10 @@ async function combineDocx(templateOrBaseBytes, scaffoldXml, sourceChapters) {
     rootOpen(sourceDoc, 'document');
     const sourceBody = innerBody(sourceDoc);
     if (/<w:altChunk\b/.test(sourceBody)) throw new Error(`Chapter ${index + 1} contains a Word altChunk that cannot be combined safely.`);
+    if (Object.keys(sourceZip.files).some(name => /^word\/comments[^/]*\.xml$/i.test(name))
+      || /<w:comment(?:Reference|RangeStart|RangeEnd)\b/.test(sourceBody)) {
+      throw new Error('Choose a clean manuscript without review annotations for Combined Word export.');
+    }
     const sourceStyles = await xml(sourceZip, 'word/styles.xml', false);
     const sourceNumbers = await xml(sourceZip, 'word/numbering.xml', false);
     const styleIds = new Map();
@@ -306,7 +322,7 @@ async function combineDocx(templateOrBaseBytes, scaffoldXml, sourceChapters) {
       if (sourceType && !target.endsWith('.rels')) setContentType(extraTypes, target, sourceType);
     }
 
-    let fragment = remapNumbers(remapStyles(sourceBody.replace(/<w:sectPr\b[\s\S]*?<\/w:sectPr>\s*$/, ''), styleIds), nums, abstracts);
+    let fragment = remapNumbers(remapStyles(withoutTrailingSection(sourceBody), styleIds), nums, abstracts);
     const originalFoot = await xml(sourceZip, 'word/footnotes.xml', false);
     const originalEnd = await xml(sourceZip, 'word/endnotes.xml', false);
     for (const kind of ['footnote', 'endnote']) {
