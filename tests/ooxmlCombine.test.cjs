@@ -75,3 +75,20 @@ test('rejects altChunks and macro-bearing source documents',async()=>{
  await assert.rejects(()=>source(1,{altChunk:true}).then(bytes=>combineDocx(base,scaffold,[{bytes}])),/altChunk/);
  await assert.rejects(()=>source(1,{macro:true}).then(bytes=>combineDocx(base,scaffold,[{bytes}])),/macro|vbaProject/i);
 });
+
+test('public compiler entry point combines sources without flattening them to text', async () => {
+  const { buildDocx } = require('../electron/manuscript-compiler.cjs');
+  const input = await source(1);
+  const docx = await buildDocx('Edited Book', [{
+    id: 'CH01', title: 'Source chapter', stageLabel: 'Final manuscript',
+    paragraphs: [], abstractText: 'Abstract prose', sourceBytes: input,
+  }], { includeAbstracts: true, includeMetadata: false });
+  const zip = await JSZip.loadAsync(docx);
+  const xml = await zip.file('word/document.xml').async('string');
+  assert.match(xml, /Edited Book/);
+  assert.match(xml, /CH01: Source chapter/);
+  assert.match(xml, /Abstract prose/);
+  assert.match(xml, /<w:tbl>/);
+  assert.match(xml, /<w:footnoteReference/);
+  assert.ok(zip.file('word/compiled/ch1/media/image1.png'));
+});
