@@ -92,3 +92,37 @@ test('public compiler entry point combines sources without flattening them to te
   assert.match(xml, /<w:footnoteReference/);
   assert.ok(zip.file('word/compiled/ch1/media/image1.png'));
 });
+
+
+test('preserves paragraphs around intermediate section definitions', async () => {
+  const sourceZip = await JSZip.loadAsync(await source(1));
+  const original = await sourceZip.file('word/document.xml').async('string');
+  const breakParagraph = '<w:p><w:pPr><w:sectPr><w:pgSz w:w="10000" w:h="18000"/></w:sectPr></w:pPr>'
+    + '<w:r><w:t>Intermediate section text</w:t></w:r></w:p>';
+  sourceZip.file('word/document.xml', original.replace('<w:sectPr>', breakParagraph + '<w:sectPr>'));
+  const merged = await combineDocx(await template(), scaffold, [
+    {bytes: await sourceZip.generateAsync({type:'nodebuffer'})},
+    {bytes: await source(2)},
+  ]);
+  const zip = await JSZip.loadAsync(merged);
+  const xml = await zip.file('word/document.xml').async('string');
+  assert.match(xml, /Intermediate section text/);
+  assert.match(xml, /Bullet 2/);
+  assert.equal((xml.match(/<w:p\b[^>]*>/g)||[]).length, (xml.match(/<\/w:p>/g)||[]).length);
+  assert.equal((xml.match(/<w:pPr\b[^>]*>/g)||[]).length, (xml.match(/<\/w:pPr>/g)||[]).length);
+});
+
+test('requires clean sources and templates rather than attempting to merge annotations', async () => {
+  const annotated = await JSZip.loadAsync(await source(1));
+  const sourceXml = await annotated.file('word/document.xml').async('string');
+  annotated.file('word/document.xml', sourceXml.replace('<w:sectPr>',
+    '<w:p><w:r><w:commentReference w:id="1"/></w:r></w:p><w:sectPr>'));
+  const badSource = await annotated.generateAsync({type:'nodebuffer'});
+  const base = await template();
+  await assert.rejects(() => combineDocx(base, scaffold, [{bytes:badSource}]), /clean manuscript/);
+  const badTemplate = await JSZip.loadAsync(base);
+  badTemplate.file('word/comments.xml', '<w:comments/>');
+  const bytes = await badTemplate.generateAsync({type:'nodebuffer'});
+  const cleanSource = await source(2);
+  await assert.rejects(() => combineDocx(bytes, scaffold, [{bytes:cleanSource}]), /clean Word template/);
+});
