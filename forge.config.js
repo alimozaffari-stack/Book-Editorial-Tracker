@@ -41,6 +41,10 @@ const asarConfig = useLegacyAsarConfig ? true : { unpack: '**/node_modules/**' }
 
 function shouldIgnorePath(resourcePath) {
   const normalizedPath = String(resourcePath).replaceAll('\\', '/');
+  // Package runtime files only. Never bundle development experiments or manuscript files.
+  if (/^\/?(?:\.clinerules|\.specify|scripts|specs|public)(?:\/|$)/i.test(normalizedPath)) return true;
+  if (/^\/?(?:\.tmp_[^/]*|\.env(?:\.example)?|\.gitignore|tsconfig\.json|index\.html)$/i.test(normalizedPath)) return true;
+  if (!/(^|\/)node_modules\//i.test(normalizedPath) && /\.(?:docx?|dot[mx]|pdf|zip)$/i.test(normalizedPath)) return true;
   if (/(^|\/)\.(agents|codex|codex-remote-attachments|kilo)(\/|$)/i.test(normalizedPath)) return true;
   if (/(^|\/)(src|tests|docs|coverage|evidence)(\/|$)/i.test(normalizedPath)) return true;
   if (/(^|\/)(\.git|out|graphify-index-app|graphify-index-manuscript|graphify-out|\.code-review-graph)(\/|$)/i.test(normalizedPath)) return true;

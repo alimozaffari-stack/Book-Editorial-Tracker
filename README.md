@@ -1,6 +1,6 @@
 # Book Editorial Tracker
 
-Book Editorial Tracker is a Windows desktop application for managing chapter metadata, editorial stages, manuscript references and activity history. Version 0.2.0 is being recovered and verified in this checkout. Release acceptance is recorded separately; a version label alone does not establish readiness.
+Book Editorial Tracker is a Windows desktop application for managing chapter metadata, editorial stages, manuscript references and activity history. Version 0.2.1 is a candidate update for clean Combined Word export, currently undergoing release acceptance. Release acceptance is recorded separately; a version label alone does not establish readiness.
 
 ## Storage choices
 

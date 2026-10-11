@@ -1,6 +1,6 @@
 # Release verification
 
-Build a fresh Windows candidate from this isolated recovery checkout. Do not reuse a historical installer as evidence for current source. Keep the source version at 0.2.0 until a release version is explicitly chosen. Publishing, pushing and signing are separate actions.
+Build a fresh Windows candidate from this isolated recovery checkout. Do not reuse a historical installer as evidence for current source. The Combined Word export patch is version 0.2.1. Publishing, pushing, signing and final release acceptance remain separate actions.
 
 ## Source checks
 

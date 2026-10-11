@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.1 - 2026-10-11
+
+### Fixed
+
+- Combined Word export preserves tables, footnotes, endnotes, embedded images and list numbering, with optional .docx/.dotx template selection.
+- Intermediate Word section breaks no longer disrupt compiled document structure.
+- Clean sources are required; editorial-commented documents are rejected rather than combined.
+- Windows release packages exclude working files, manuscripts, templates and development experiments.
+
+### Validation
+
+- The Windows ZIP is a release candidate pending final acceptance. Word/COM automation remains stopped following the unresolved Normal.dotm incident.
+
 ## Unreleased
 
 ### Changed

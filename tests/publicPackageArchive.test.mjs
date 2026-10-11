@@ -24,6 +24,14 @@ test('explicit public app.asar contains runtime files without private configurat
   assert.equal(counts.ownerEmail, 0, 'Public app.asar still contains the owner email.');
 
   const files = listPackage(asarPath);
+  const unexpectedWork = files.filter(file => {
+    const normalized = file.replaceAll('\\', '/');
+    if (normalized.startsWith('/node_modules/')) return false;
+    return /^\/(?:\.clinerules|\.specify|scripts|specs|public)(?:\/|$)/i.test(normalized)
+      || /\.(?:docx?|dot[mx]|pdf|zip)$/i.test(normalized)
+      || /^\/(?:\.tmp_[^/]*|\.env(?:\.example)?|\.gitignore|tsconfig\.json|index\.html)$/i.test(normalized);
+  });
+  assert.deepEqual(unexpectedWork, [], 'Public archive must not contain manuscripts or development experiments');
   const hasConfig = files.some(f => f.includes('firebase-applet-config.json'));
   assert.equal(hasConfig, false, 'Public app.asar still contains firebase-applet-config.json as a packaged file.');
   const residue = files.filter(file => /(^|[\\/])(?:\.git|\.codex|\.codex-remote-attachments|\.kilo|user-data|tests|src)(?:[\\/]|$)/i.test(file)

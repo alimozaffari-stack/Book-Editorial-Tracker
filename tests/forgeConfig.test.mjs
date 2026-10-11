@@ -30,6 +30,13 @@ test('packaging excludes development source but keeps runtime dependencies', asy
   assert.equal(config.packagerConfig.ignore('/.kilo/node_modules/example/package.json'), true);
   assert.equal(config.packagerConfig.ignore('/.codex-remote-attachments/upload.jpg'), true);
   assert.equal(config.packagerConfig.ignore('/src/App.tsx'), true);
+  assert.equal(config.packagerConfig.ignore('/scripts/word-merge-experiment/CH01_content.docx'), true);
+  assert.equal(config.packagerConfig.ignore('/.specify/feature.json'), true);
+  assert.equal(config.packagerConfig.ignore('/.clinerules/workflows/example.md'), true);
+  assert.equal(config.packagerConfig.ignore('/specs/intake/checklist.md'), true);
+  assert.equal(config.packagerConfig.ignore('/public/asset.png'), true);
+  assert.equal(config.packagerConfig.ignore('/sample-manuscript.docx'), true);
+  assert.equal(config.packagerConfig.ignore('/external-template.dotm'), true);
   assert.equal(config.packagerConfig.ignore('/full_with_lines.txt'), true);
   assert.equal(config.packagerConfig.ignore('/vite.config.ts'), true);
   assert.equal(config.packagerConfig.ignore('/electron/main.cjs'), false);
