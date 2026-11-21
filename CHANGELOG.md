@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 - 2026-11-21
+
+### Added
+
+- Compile selected chapter documents to Word, Markdown or a ZIP of source files. Word exports can use an uploaded DOCX or DOTX template.
+- Check source availability before saving and provide recovery for moved documents.
+- Show recent local and shared projects at startup.
+- Undo successive chapter deletions during the current project session.
+
+### Changed
+
+- Refined chapter navigation, project dashboard, compiler controls and accessibility feedback.
+
 ## Unreleased
 
 ### Changed

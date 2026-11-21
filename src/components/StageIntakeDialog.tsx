@@ -38,12 +38,13 @@ export function validateStageIntake(values: StageIntakeValues): { field?: 'round
 }
 
 interface Props {
+  chapterId: string;
   onAdd: (record: ChapterStageRecord) => Promise<{ ok: boolean; message?: string }>;
   onClose: () => void;
   recordedBy: string;
 }
 
-export function StageIntakeDialog({ onAdd, onClose, recordedBy }: Props) {
+export function StageIntakeDialog({ chapterId, onAdd, onClose, recordedBy }: Props) {
   const [file, setFile] = useState<SelectedDocx | null>(null);
   const [inspection, setInspection] = useState<InspectionResult | null>(null);
   const [stage, setStage] = useState<ChapterStage>('initial-manuscript');
@@ -111,12 +112,13 @@ export function StageIntakeDialog({ onAdd, onClose, recordedBy }: Props) {
   };
 
   return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="stage-intake-title"><div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6">
-    <h2 id="stage-intake-title" className="text-xl font-semibold">Add stage file</h2><p className="mt-1 text-sm text-gray-600">Choose one Word document, review the detected details, then confirm.</p>
+    <h2 id="stage-intake-title" className="text-xl font-semibold">Attach Word document to {chapterId}</h2>
+    <p className="mt-1 text-sm text-gray-600">Choose a document and review the stage, date and word count. Saving adds a stage record to this chapter and keeps the original file in place.</p>
     <button onClick={choose} disabled={busy} className="mt-4 rounded bg-indigo-600 px-4 py-2 text-white disabled:opacity-50">{busy && !file ? 'Inspecting…' : 'Choose Word document'}</button>
     {file && inspection && <><div className="mt-4 rounded-lg bg-gray-50 p-3 text-sm"><p className="font-medium">{file.fileName}</p><p className="mt-1 text-gray-600">Proposed: {STAGES.find(item => item.value === stage)?.label} · {words} words · {date}</p></div><details className="mt-3 rounded-lg border p-3 text-sm"><summary className="cursor-pointer font-medium">File details</summary><dl className="mt-2 grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-gray-600"><dt>Size</dt><dd>{file.sizeBytes.toLocaleString()} bytes</dd><dt>SHA-256</dt><dd className="break-all font-mono text-xs">{file.sha256}</dd><dt>File created</dt><dd>{file.filesystemCreatedAt ?? 'Not available'}</dd><dt>File modified</dt><dd>{file.filesystemModifiedAt}</dd><dt>Document created</dt><dd>{inspection.documentCreatedAt ?? 'Not available'}</dd><dt>Document modified</dt><dd>{inspection.documentModifiedAt ?? 'Not available'}</dd><dt>Creator</dt><dd>{inspection.documentCreator ?? 'Not available'}</dd><dt>Title</dt><dd>{inspection.documentTitle ?? 'Not available'}</dd><dt>Calculated words</dt><dd>{inspection.calculatedWordCount}</dd></dl></details></>}
     <label className="mt-4 block text-sm">Stage<select value={stage} onChange={event => setStage(event.target.value as ChapterStage)} disabled={busy} className="mt-1 w-full border p-2">{STAGES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
     {(stage === 'revision' || stage === 'feedback-sent') && <label className="mt-3 block text-sm">Round<input ref={roundRef} type="number" min={stage === 'feedback-sent' ? 0 : 1} step="1" value={round} onChange={event => setRound(event.target.value)} disabled={busy} className="mt-1 w-full border p-2" /></label>}
     <label className="mt-3 block text-sm">Effective date<input ref={dateRef} type="date" value={date} onChange={event => setDate(event.target.value)} disabled={busy} className="mt-1 w-full border p-2" /></label><label className="mt-3 block text-sm">Word count<input ref={wordsRef} type="number" min="0" step="1" value={words} onChange={event => setWords(event.target.value)} disabled={busy} className="mt-1 w-full border p-2" /></label>
-    {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}<div className="mt-5 flex justify-end gap-3"><button onClick={clearAndClose} disabled={busy}>Cancel</button><button onClick={add} disabled={busy || !file} className="rounded bg-indigo-600 px-4 py-2 text-white disabled:opacity-50">{busy && file ? 'Adding…' : 'Add stage record'}</button></div>
+    {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}<div className="mt-5 flex justify-end gap-3"><button onClick={clearAndClose} disabled={busy}>Cancel</button><button onClick={add} disabled={busy || !file} className="rounded bg-indigo-600 px-4 py-2 text-white disabled:opacity-50">{busy && file ? 'Saving…' : 'Save stage record'}</button></div>
   </div></div>;
 }

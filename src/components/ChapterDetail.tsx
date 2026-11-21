@@ -174,7 +174,7 @@ export function ChapterDetail({
       if ((error as any)?.kind === "duplicate")
         return {
           ok: false,
-          message: "This exact file is already recorded for this chapter",
+          message: "This file is already attached to this chapter. Choose a different Word document.",
         };
       if ((error as any)?.kind === "stage-conflict") {
         const existing = (error as any).conflictingRecords?.[0] as ChapterStageRecord | undefined;
@@ -266,7 +266,7 @@ export function ChapterDetail({
               onClick={() => setShowSubmissionDialog(true)}
               className="mb-4 px-4 py-2 bg-indigo-600 text-white rounded-lg"
             >
-              Add stage file
+              Attach Word document
             </button>
           )}
           <form
@@ -758,6 +758,7 @@ export function ChapterDetail({
       {/* Submission intake dialog */}
       {showSubmissionDialog && (
         <StageIntakeDialog
+          chapterId={chapter.id}
           onAdd={handleAddSubmission}
           onClose={() => setShowSubmissionDialog(false)}
           recordedBy={userEmail ?? ""}

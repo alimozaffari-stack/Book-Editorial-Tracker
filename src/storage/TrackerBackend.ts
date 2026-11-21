@@ -24,6 +24,7 @@ export interface TrackerBackend {
   appendStageRecord(chapterId: string, record: ChapterStageRecord, expectedRevision: number, actor: string): Promise<WriteResult>;
   voidStageRecord(chapterId: string, recordId: string, reason: string, expectedRevision: number, actor: string): Promise<WriteResult>;
   createChapters(chapters: Chapter[], actor: string, source: string): Promise<{ created: string[]; skipped: string[] }>;
+  restoreDeletedChapters(entries: { chapter: Chapter; index: number }[], generationId: string, actor: string): Promise<void>;
   deleteChapters(chapters: Chapter[], actor: string): Promise<WriteResult>;
   startNewProject(input: ReviewedResetInput, actor: string): Promise<ProjectState>;
   recoveryContents(): string;

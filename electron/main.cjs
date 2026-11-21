@@ -1,12 +1,16 @@
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
 const { spawn } = require('node:child_process');
+const { randomUUID } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { startLocalAppServer } = require('./local-server.cjs');
 const { isPathInsideResolvedRoot } = require('./project-path-policy.cjs');
 const {
+  isSha256,
+  resolveProjectStageFile,
   resolveStageSourceFile,
   validateStageSourceRequest,
+  verifyLocatedStageFile,
 } = require('./stage-source-policy.cjs');
 const { createProjectFilePolicy } = require('./project-file-policy.cjs');
 const { createSharedProjectLockPolicy } = require('./shared-project-lock.cjs');
@@ -137,6 +141,8 @@ function sharedProjectLockPolicy() {
   });
 }
 
+ipcMain.handle('list-recent-projects', () => projectFilePolicy().listRecentProjects());
+ipcMain.handle('open-recent-project', (_event, token, mode) => projectFilePolicy().openRecentProject(token, mode));
 ipcMain.handle('choose-project-file', async () => projectFilePolicy().chooseProjectFile());
 ipcMain.handle('choose-shared-project-file', async () => projectFilePolicy().chooseSharedProjectFile());
 ipcMain.handle('save-project-file', async (_event, payload) => projectFilePolicy().saveProjectFile(payload?.fileToken, payload?.expectedHash, payload?.contents));
@@ -385,6 +391,7 @@ const compilerFormats = {
   zip: { extension: 'zip', name: 'ZIP archive' },
 };
 const compilerStages = new Set(['abstract', 'initial-manuscript', 'feedback-sent', 'revision', 'final-manuscript', 'publisher-submission', 'typeset-submission']);
+const legacyCompilerFolders = new WeakMap();
 
 function compilerText(value, maxLength) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
@@ -395,14 +402,59 @@ function compilerFileName(projectName, extension) {
   return `${stem}.${extension}`;
 }
 
-ipcMain.handle('compile-manuscript', async (_event, request) => {
+ipcMain.handle('locate-compiler-source', async (event, { sourceRelativePath, sourceSha256 } = {}) => {
+  const parent = BrowserWindow.fromWebContents(event.sender);
+  const choose = options => parent ? dialog.showOpenDialog(parent, options) : dialog.showOpenDialog(options);
+  if (isSha256(sourceSha256)) {
+    const result = await choose({
+      title: 'Locate source Word document',
+      properties: ['openFile'],
+      filters: [{ name: 'Word documents', extensions: ['docx'] }],
+    });
+    if (result.canceled || !result.filePaths[0]) return { status: 'cancelled' };
+    const verified = await verifyLocatedStageFile(result.filePaths[0], sourceSha256);
+    if (!verified.ok) return { status: 'error', message: verified.message };
+    rememberStageDocument(sourceSha256, verified.filePath);
+    return { status: 'located' };
+  }
+  if (typeof sourceRelativePath !== 'string' || !sourceRelativePath) {
+    return { status: 'error', message: 'Open the chapter and attach its source Word document again.' };
+  }
+  const result = await choose({ title: 'Choose the folder containing the chapter sources', properties: ['openDirectory'] });
+  if (result.canceled || !result.filePaths[0]) return { status: 'cancelled' };
+  const root = result.filePaths[0];
+  const resolved = resolveProjectStageFile(sourceRelativePath, root);
+  if (!resolved.ok) return { status: 'error', message: 'That folder does not contain the recorded source. Choose the folder that contains the chapter subfolders.' };
+  const legacyFolderToken = randomUUID();
+  legacyCompilerFolders.set(event.sender, { token: legacyFolderToken, root });
+  return { status: 'located', legacyFolderToken };
+});
+
+ipcMain.handle('check-compiler-sources', (event, request) => processManuscript(event, request, true));
+ipcMain.handle('compile-manuscript', (event, request) => processManuscript(event, request, false));
+
+async function processManuscript(event, request, checkOnly) {
   try {
     const format = compilerFormats[request?.format];
     if (!format || !Array.isArray(request?.chapters) || request.chapters.length === 0 || request.chapters.length > 1000) {
       throw new Error('The manuscript compiler request is invalid.');
     }
     const options = { includeAbstracts: request.includeAbstracts === true, includeMetadata: request.includeMetadata === true };
+    if (request.template !== undefined) {
+      const name = request.template?.fileName;
+      const data = request.template?.bytes;
+      if (request.format !== 'docx' || typeof name !== 'string'
+        || !/^[^\\/]{1,255}\.(docx|dotx)$/i.test(name)
+        || !(data instanceof Uint8Array) || data.byteLength < 100 || data.byteLength > 25 * 1024 * 1024) {
+        throw new Error('Choose a .docx or .dotx template smaller than 25 MiB. Macro-enabled templates are excluded.');
+      }
+      options.templateBytes = Buffer.from(data);
+    }
+    let combinedSourceBytes = options.templateBytes?.byteLength || 0;
+    const legacyFolder = legacyCompilerFolders.get(event.sender);
+    const legacyRoot = legacyFolder && legacyFolder.token === request.legacyFolderToken ? legacyFolder.root : undefined;
     const sections = [];
+    const unavailableSources = [];
     const sources = [];
     for (const chapter of request.chapters) {
       const source = chapter?.source;
@@ -412,11 +464,25 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
       const resolved = await resolveStageSourceFile({
         sourceRelativePath: source.sourceRelativePath,
         sourceSha256: source.sourceSha256,
-        selectedProjectRoot,
+        selectedProjectRoot: isSha256(source.sourceSha256) ? selectedProjectRoot : legacyRoot,
         indexPath: stageDocumentIndexPath(),
       });
-      if (!resolved.ok) throw new Error(`${chapter.id}: ${resolved.message}`);
+      if (!resolved.ok) {
+        if (checkOnly) {
+          unavailableSources.push({ chapterId: compilerText(chapter.id, 100), source });
+          continue;
+        }
+        return {
+          cancelled: false,
+          includedChapters: 0,
+          unavailableSource: { chapterId: compilerText(chapter.id, 100), source },
+        };
+      }
+      if (checkOnly) continue;
       const bytes = fs.readFileSync(resolved.filePath);
+      if (request.format === 'docx' && (combinedSourceBytes += bytes.length) > 256 * 1024 * 1024) {
+        throw new Error('The combined Word sources exceed the 256 MiB safety limit.');
+      }
       const section = {
         id: compilerText(chapter.id, 100),
         title: compilerText(chapter.title, 500),
@@ -430,11 +496,16 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
           ? `Revision ${String(source.roundNumber ?? 1).padStart(2, '0')}`
           : source.stage.replace(/-/g, ' ').replace(/^./, character => character.toUpperCase()),
         effectiveOn: compilerText(source.effectiveOn, 10),
-        paragraphs: request.format === 'zip' ? [] : await extractDocxText(bytes),
+        paragraphs: request.format === 'md' ? await extractDocxText(bytes) : [],
+        sourceBytes: request.format === 'docx' ? bytes : undefined,
       };
       sections.push(section);
       sources.push({ section, sourceFileName: source.sourceFileName || path.basename(resolved.filePath), bytes });
     }
+    if (checkOnly) return {
+      cancelled: false, includedChapters: request.chapters.length - unavailableSources.length,
+      unavailableSource: unavailableSources[0], unavailableSources,
+    };
     const projectName = compilerText(request.projectName, 500) || 'Compiled manuscript';
     const output = request.format === 'md'
       ? Buffer.from(markdownForSections(projectName, sections, options), 'utf8')
@@ -447,7 +518,7 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
       filters: [{ name: format.name, extensions: [format.extension] }],
     });
     if (result.canceled || !result.filePath) return { cancelled: true, includedChapters: sections.length };
-    if (selectedProjectRoot && isPathInsideResolvedRoot(selectedProjectRoot, result.filePath)) {
+    if ([selectedProjectRoot, legacyRoot].some(root => root && isPathInsideResolvedRoot(root, result.filePath))) {
       throw new Error('Choose a Save As destination outside the selected project folder.');
     }
     fs.writeFileSync(result.filePath, output);
@@ -456,7 +527,7 @@ ipcMain.handle('compile-manuscript', async (_event, request) => {
     console.error('Manuscript compilation failed:', error?.message || error);
     throw new Error(error instanceof Error ? error.message : 'The manuscript could not be compiled.');
   }
-});
+}
 
   const squirrelEvent = process.argv.find(argument => [
     '--squirrel-install', '--squirrel-updated', '--squirrel-uninstall', '--squirrel-obsolete',

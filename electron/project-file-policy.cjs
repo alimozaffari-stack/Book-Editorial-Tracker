@@ -207,6 +207,35 @@ function createProjectFilePolicy(options) {
   }
 
   return {
+    listRecentProjects() {
+      const recent = [];
+      const seen = new Set();
+      for (const [token, raw] of Object.entries(loadTokens()).reverse()) {
+        const entry = normalizeTokenEntry(raw);
+        if (!entry || !path.isAbsolute(entry.filePath)) continue;
+        const key = entry.mode + ':' + path.normalize(entry.filePath);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        recent.push({ token, name: path.basename(entry.filePath), mode: entry.mode });
+        if (recent.length === 5) break;
+      }
+      return recent.map(item => {
+        const duplicates = recent.filter(other => other.mode === item.mode && other.name.toLowerCase() === item.name.toLowerCase());
+        if (duplicates.length < 2) return item;
+        const folders = duplicates.map(other => path.dirname(resolveToken(other.token, other.mode)).split(path.sep));
+        const index = duplicates.indexOf(item);
+        let depth = 1;
+        while (folders.some((parts, i) => i !== index && parts.slice(-depth).join(path.sep) === folders[index].slice(-depth).join(path.sep)) && depth < folders[index].length) depth++;
+        return { ...item, folder: folders[index].slice(-depth).join(path.sep) };
+      });
+    },
+    openRecentProject(token, mode) {
+      if (mode !== LOCAL_MODE && mode !== SHARED_MODE) throw new Error('Choose a local or shared project.');
+      const filePath = resolveToken(token, mode);
+      if (!fs.existsSync(filePath)) throw new Error('This project moved or is unavailable. Open its current location using the file picker.');
+      const { contents } = readValidatedProjectFile(filePath);
+      return { cancelled: false, contents, fileToken: rememberFile(filePath, mode) };
+    },
     chooseProjectFile,
     chooseSharedProjectFile,
     saveProjectFile,

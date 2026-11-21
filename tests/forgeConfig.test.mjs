@@ -95,7 +95,7 @@ test('desktop and application branding use Book Editorial Tracker', () => {
 
   assert.equal(packageJson.productName, 'Book Editorial Tracker');
   assert.match(html, /<title>Book Editorial Tracker<\/title>/);
-  assert.match(appSource, /Book Editorial Tracker/);
+  assert.match(appSource, /Book Editorial\s+(?:<span[^>]*>)?Tracker/);
   assert.doesNotMatch(html, /My Google AI Studio App/);
   assert.doesNotMatch(appSource, /Volume Editor Tracker/);
 });

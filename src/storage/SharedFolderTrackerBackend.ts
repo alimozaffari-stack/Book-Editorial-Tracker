@@ -272,6 +272,19 @@ export class SharedFolderTrackerBackend implements TrackerBackend {
     });
   }
 
+  async restoreDeletedChapters(entries: { chapter: Chapter; index: number }[], generationId: string, actor: string): Promise<void> {
+    await this.withMutation(async nextFile => {
+      if (nextFile.project.generationId !== generationId) throw new Error('This deletion belongs to another project.');
+      const ids = new Set(nextFile.chapters.map(chapter => chapter.id.toLowerCase()));
+      for (const { chapter } of entries) {
+        if (ids.has(chapter.id.toLowerCase())) throw new Error(`A chapter already uses ${chapter.id}. Review that record in Chapters before restoring this group. All current records have been kept.`);
+        ids.add(chapter.id.toLowerCase());
+      }
+      for (const { chapter, index } of entries) nextFile.chapters.splice(index, 0, { ...chapter, dataRevision: (chapter.dataRevision ?? 0) + 1 });
+      await this.recordMutation(nextFile, actor, 'chapter-restored', `Restored ${entries.length} deleted chapter(s)`, { chapterIds: entries.map(entry => entry.chapter.id) });
+    });
+  }
+
   async deleteChapters(chapters: Chapter[], actor: string): Promise<WriteResult> {
     return this.withMutation(async nextFile => {
       if (!chapters.length) throw new Error('Select at least one chapter to delete.');

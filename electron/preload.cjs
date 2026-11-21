@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('editorialTracker', {
   saveLocalExport: (filename, contents) => ipcRenderer.invoke('save-local-export', { filename, contents }),
   compileManuscript: (request) => ipcRenderer.invoke('compile-manuscript', request),
+  locateCompilerSource: (request) => ipcRenderer.invoke('locate-compiler-source', request),
   openFolderForFile: (filePath) => ipcRenderer.invoke('open-folder-for-file', filePath),
   selectDocx: () => ipcRenderer.invoke('select-docx'),
   scanProjectFolder: () => ipcRenderer.invoke('scan-project-folder'),
@@ -10,6 +11,9 @@ contextBridge.exposeInMainWorld('editorialTracker', {
   inspectProjectDocx: (relativePath) => ipcRenderer.invoke('inspect-project-docx', relativePath),
   forgetProjectFolder: () => ipcRenderer.invoke('forget-project-folder'),
   openStageSource: (request) => ipcRenderer.invoke('open-stage-source', request),
+  listRecentProjects: () => ipcRenderer.invoke('list-recent-projects'),
+  openRecentProject: (token, mode) => ipcRenderer.invoke('open-recent-project', token, mode),
+  checkCompilerSources: (request) => ipcRenderer.invoke('check-compiler-sources', request),
   chooseProjectFile: () => ipcRenderer.invoke('choose-project-file'),
   chooseSharedProjectFile: () => ipcRenderer.invoke('choose-shared-project-file'),
   saveProjectFile: (fileToken, expectedHash, contents) => ipcRenderer.invoke('save-project-file', { fileToken, expectedHash, contents }),

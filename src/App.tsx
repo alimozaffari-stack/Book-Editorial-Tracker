@@ -8,7 +8,7 @@ import { BiosView } from './components/BiosView';
 import { AbstractsView } from './components/AbstractsView';
 import { ActivityView } from './components/ActivityView';
 import { StorageModeChooser } from './components/StorageModeChooser';
-import { LayoutDashboard, List, CheckSquare, FileText, LogOut, ClipboardList, CircleHelp, Users } from 'lucide-react';
+import { LayoutDashboard, List, CheckSquare, FileText, LogOut, ClipboardList, CircleHelp, Users, Menu } from 'lucide-react';
 import editorialMark from './assets/editorial-review-tracker-mark.png';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BackupIntakeView } from './components/BackupIntakeView';
@@ -24,12 +24,25 @@ import { SharedFolderTrackerBackend } from './storage/SharedFolderTrackerBackend
 type ActiveTab = 'dashboard' | 'project' | 'chapters' | 'tasks' | 'bios' | 'abstracts' | 'activity' | 'backups';
 type ProjectSetupFocus = 'import-csv-json' | 'restore-json' | 'scan-folder' | null;
 
+const trackerNavigation = [
+  { tab: 'project', label: 'Project & Help', Icon: CircleHelp },
+  { tab: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
+  { tab: 'chapters', label: 'Chapters', Icon: List },
+  { tab: 'tasks', label: 'Tasks', Icon: CheckSquare },
+  { tab: 'bios', label: 'Bios', Icon: Users },
+  { tab: 'abstracts', label: 'Abstracts', Icon: FileText },
+  { tab: 'activity', label: 'Activity', Icon: ClipboardList },
+  { tab: 'backups', label: 'Backups & intake', Icon: FileText },
+] as const;
+
 function AppContent() {
   const SHARED_OWNERSHIP_LOST_MESSAGE = 'Shared editing access was lost. No further shared saves are permitted until this file is reopened and a lock is acquired.';
   const isPublicBuild = import.meta.env.VITE_APP_VARIANT === 'public';
   const appVersion = import.meta.env.VITE_APP_VERSION;
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const mainContent = useRef<HTMLElement>(null);
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
@@ -49,6 +62,9 @@ function AppContent() {
   useEffect(() => { backendRef.current = backend; }, [backend]);
 
   const [projectRevision, setProjectRevision] = useState(0);
+  const [deletions, setDeletions] = useState<{ generationId: string; entries: { chapter: Chapter; index: number }[] }[]>([]);
+  const deletion = deletions[deletions.length - 1];
+  const [undoBusy, setUndoBusy] = useState(false);
 
   const [setupMessage, setSetupMessage] = useState('');
   const [storageBusy, setStorageBusy] = useState(false);
@@ -138,6 +154,8 @@ function AppContent() {
     setStorageKind(null);
     setJsonBackupExportedAt(null);
     setEditingChapter(null);
+    setNavigationOpen(false);
+    setDeletions([]);
     setProjectSetupFocus(null);
     setSharedProjectLock(null);
     setSharedProjectCanEdit(false);
@@ -259,7 +277,7 @@ function AppContent() {
     if (!backend) throw new Error('Tracker backend is not ready.');
     try {
       const result = await backend.appendStageRecord(chapterId, record, expectedRevision, actorLabel);
-      if (result.kind === 'duplicate' || result.kind === 'unchanged') return result.current;
+      if (result.kind === 'unchanged') return result.current;
       if (result.kind !== 'ok') throw result;
       setEditingChapter(result.new);
       return result.new;
@@ -305,8 +323,14 @@ function AppContent() {
   const handleDeleteChapters = async (chaptersToDelete: Chapter[]) => {
     if (!backend) throw new Error('Tracker backend is not ready.');
     try {
+      if (!project) throw new Error('Open a project first.');
+      const removed = new Set(chaptersToDelete.map(chapter => chapter.id));
+      const entries = chapters.map((chapter, index) => ({ chapter, index })).filter(entry => removed.has(entry.chapter.id));
       const result = await backend.deleteChapters(chaptersToDelete, actorLabel);
       if (result.kind !== 'ok') throw new Error('Nothing was deleted. A selected chapter changed; refresh and review it again.');
+      const undoGroup = { generationId: project.generationId, entries };
+      setDeletions(current => [...current.filter(group => group.generationId === project.generationId), undoGroup]);
+      setSetupMessage('');
     } catch (error) {
       if (isFileProjectStaleSave(error) || backend?.hasPendingRecovery()) {
         setLocalSaveNeedsCopy(true);
@@ -577,12 +601,14 @@ function AppContent() {
     }
   };
 
-  const handleOpenLocalProject = async (editorLabel: string) => {
+  const handleOpenLocalProject = async (editorLabel: string, recentToken?: string) => {
     setStorageBusy(true);
     setRuntimeError(null);
     setSetupMessage('');
     try {
-      const result = await window.editorialTracker?.chooseProjectFile?.();
+      const result = recentToken
+        ? await window.editorialTracker?.openRecentProject(recentToken, 'local')
+        : await window.editorialTracker?.chooseProjectFile?.();
       if (!result || result.cancelled) {
         setSetupMessage('Open local project cancelled.');
         return;
@@ -591,20 +617,22 @@ function AppContent() {
       const opened = await preparePortableProjectOpen(result.contents);
       await openLocalProject(editorLabel, result.contents, result.fileToken, opened.originalHash);
     } catch (error) {
-      setRuntimeError(error instanceof Error ? error.message : 'Local project file could not be opened.');
+      setRuntimeError(error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '') : 'Local project file could not be opened.');
     } finally {
       setStorageBusy(false);
     }
   };
 
-  const handleOpenSharedProject = async (editorLabel: string) => {
+  const handleOpenSharedProject = async (editorLabel: string, recentToken?: string) => {
     setStorageBusy(true);
     setRuntimeError(null);
     setSetupMessage('');
     setSharedForceUnlockText('');
     setSharedProjectLock(null);
     try {
-      const result = await window.editorialTracker?.chooseSharedProjectFile?.();
+      const result = recentToken
+        ? await window.editorialTracker?.openRecentProject(recentToken, 'shared')
+        : await window.editorialTracker?.chooseSharedProjectFile?.();
       if (!result || result.cancelled) {
         setSetupMessage('Open shared project cancelled.');
         return;
@@ -639,7 +667,7 @@ function AppContent() {
       setSetupMessage('Shared project opened for editing.');
       return;
     } catch (error) {
-      setRuntimeError(error instanceof Error ? error.message : 'Shared project file could not be opened.');
+      setRuntimeError(error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '') : 'Shared project file could not be opened.');
     } finally {
       setStorageBusy(false);
     }
@@ -662,94 +690,67 @@ function AppContent() {
   return (
     <div className="min-h-screen pt-8 bg-gray-50 flex flex-col md:flex-row font-sans">
       <aside className="w-full md:w-64 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col">
-        <div className="p-6 flex items-center space-x-3 border-b border-gray-100">
-          <img src={editorialMark} alt="Book Editorial Tracker" className="w-10 h-10 rounded-lg" />
-          <h1 className="text-lg font-bold text-gray-900 leading-tight">Book Editorial<br/>Tracker</h1>
+        <div className="flex items-center gap-3 border-b border-gray-100 p-3 md:p-6">
+          <img src={editorialMark} alt="" className="h-8 w-8 shrink-0 rounded-lg md:h-10 md:w-10" />
+          <p className="text-sm font-bold leading-tight text-gray-900 md:text-lg">Book Editorial <span className="md:block">Tracker</span></p>
+          <button type="button" aria-expanded={navigationOpen} aria-controls="tracker-menu" onClick={() => setNavigationOpen(open => !open)} className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 md:hidden">
+            <Menu aria-hidden="true" className="h-4 w-4" /> Menu
+          </button>
         </div>
-        <nav className="p-4 space-y-1 flex-1">
-          <button
-            onClick={() => setActiveTab('project')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-              activeTab === 'project'
-                ? 'bg-indigo-50 text-indigo-700'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <CircleHelp className="w-5 h-5" />
-            <span>Project & Help</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-              activeTab === 'dashboard'
-                ? 'bg-indigo-50 text-indigo-700'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <LayoutDashboard className="w-5 h-5" />
-            <span>Dashboard</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('chapters')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-              activeTab === 'chapters'
-                ? 'bg-indigo-50 text-indigo-700'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <List className="w-5 h-5" />
-            <span>Chapters</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('tasks')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-              activeTab === 'tasks'
-                ? 'bg-indigo-50 text-indigo-700'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <CheckSquare className="w-5 h-5" />
-            <span>Tasks</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('bios')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-              activeTab === 'bios'
-                ? 'bg-indigo-50 text-indigo-700'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <Users className="w-5 h-5" />
-            <span>Bios</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('abstracts')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-              activeTab === 'abstracts'
-                ? 'bg-indigo-50 text-indigo-700'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <FileText className="w-5 h-5" />
-            <span>Abstracts</span>
-          </button>
-          <button onClick={() => setActiveTab('activity')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'activity' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}><ClipboardList className="w-5 h-5" /><span>Activity</span></button>
-          <button onClick={() => setActiveTab('backups')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'backups' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}><FileText className="w-5 h-5" /><span>Backups & intake</span></button>
-        </nav>
-        <div className="p-4 border-t border-gray-100 space-y-2">
-          <button
-            onClick={() => { void closeCurrentBackend().catch(error => setRuntimeError(error instanceof Error ? error.message : 'The project could not be closed.')); }}
-            className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Sign Out</span>
-          </button>
-          <div className="pt-1 text-center text-xs text-gray-400">Version {appVersion}</div>
+        <div id="tracker-menu" className={navigationOpen ? 'block md:flex md:flex-1 md:flex-col' : 'hidden md:flex md:flex-1 md:flex-col'}>
+          <nav aria-label="Project navigation" className="grid grid-cols-2 gap-1 p-2 md:block md:flex-1 md:space-y-1 md:p-4">
+            {trackerNavigation.map(({ tab, label, Icon }) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab);
+                  setNavigationOpen(false);
+                  requestAnimationFrame(() => mainContent.current?.focus());
+                }}
+                aria-current={activeTab === tab ? 'page' : undefined}
+                className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors md:gap-3 md:px-4 md:py-3 ${activeTab === tab
+                  ? 'bg-indigo-50 text-indigo-700'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+              >
+                <Icon aria-hidden="true" className="h-5 w-5 shrink-0" />
+                {label}
+              </button>
+            ))}
+          </nav>
+          <div className="space-y-2 border-t border-gray-100 p-3 md:p-4">
+            <button
+              type="button"
+              onClick={() => { void closeCurrentBackend().catch(error => setRuntimeError(error instanceof Error ? error.message : 'The project could not be closed.')); }}
+              className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
+            >
+              <LogOut aria-hidden="true" className="h-4 w-4" />
+              Close project
+            </button>
+            <div className="pt-1 text-center text-xs text-gray-600">Version {appVersion}</div>
+          </div>
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
+      <main ref={mainContent} tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto">
         <div className="px-6 pt-3 text-xs text-gray-500" role="status">{refreshFailed ? <span>Data could not refresh - <button className="font-medium text-indigo-700 underline" onClick={() => { setIsLoading(true); setListenerAttempt(value => value + 1); }}>Try again</button></span> : lastRefresh ? `Last refreshed ${lastRefresh}` : 'Loading live data...'}</div>
+        {deletion && deletion.generationId === project?.generationId && <div className="mx-6 mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm">
+          <span role="status">{deletion.entries.length} {deletion.entries.length === 1 ? 'chapter deleted' : 'chapters deleted'}.</span>
+          <button type="button" disabled={!canEdit || undoBusy} className="rounded px-2 py-1 font-semibold text-indigo-700 hover:bg-indigo-50 disabled:text-gray-600"
+            onClick={async () => {
+              setUndoBusy(true);
+              try {
+                await backend.restoreDeletedChapters(deletion.entries, deletion.generationId, actorLabel);
+                setDeletions(current => current.filter(group => group !== deletion));
+                setRuntimeError(null);
+                setSetupMessage('Deleted chapters restored.');
+              } catch (error) {
+                if (backend.hasPendingRecovery() || isFileProjectStaleSave(error)) setLocalSaveNeedsCopy(true);
+                setRuntimeError(error instanceof Error ? error.message : 'Undo could not restore these chapters.');
+              } finally { setUndoBusy(false); }
+            }}>{undoBusy ? 'Restoring…' : 'Undo deletion'}</button>
+          <span className="text-xs text-gray-600">{deletions.length > 1 ? `${deletions.length} deletions can be undone, latest first.` : 'Undo is available while this project is open.'}</span>
+        </div>}
         {localSaveNeedsCopy && (
           <div className="px-6 pt-3">
             <p className="text-sm text-red-700">{FILE_STALE_SAVE_MESSAGE}</p>
@@ -794,8 +795,8 @@ function AppContent() {
               onStartNewProject={handleStartNewProject}
               onChoose={handleProjectChoice}
             />}
-            {activeTab === 'dashboard' && <Dashboard chapters={chapters} project={project} />}
-            {activeTab === 'chapters' && <ChapterList chapters={chapters} projectName={project?.name ?? 'Compiled manuscript'} onEdit={setEditingChapter} onBatchUpdate={handleBatchUpdateChapterFields} onCreate={handleCreateChapters} onDelete={handleDeleteChapters} canEdit={canEdit} canDelete={canDelete} />}
+            {activeTab === 'dashboard' && <Dashboard chapters={chapters} project={project} onOpenChapter={setEditingChapter} onViewChapters={() => setActiveTab('chapters')} />}
+            {activeTab === 'chapters' && <ChapterList chapters={chapters} projectName={project?.name ?? 'Compiled manuscript'} onEdit={setEditingChapter} onBatchUpdate={handleBatchUpdateChapterFields} onCreate={handleCreateChapters} onDelete={handleDeleteChapters} onImportChapters={() => handleProjectChoice('import-csv-json')} canEdit={canEdit} canDelete={canDelete} />}
             {activeTab === 'tasks' && <TasksView chapters={chapters} />}
             {activeTab === 'bios' && <BiosView chapters={chapters} />}
             {activeTab === 'abstracts' && <AbstractsView chapters={chapters} />}

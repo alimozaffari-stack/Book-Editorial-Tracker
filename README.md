@@ -1,6 +1,12 @@
 # Book Editorial Tracker
 
-Book Editorial Tracker is a Windows desktop application for managing chapter metadata, editorial stages, manuscript references and activity history. Version 0.2.0 is being recovered and verified in this checkout. Release acceptance is recorded separately; a version label alone does not establish readiness.
+Book Editorial Tracker is a Windows desktop application for managing chapter metadata, editorial stages, manuscript references and activity history. Version 0.3.0 adds Word compilation and template support, recent projects and deletion undo.
+
+## Download
+
+Download the Windows portable package from [GitHub Releases](https://github.com/alimozaffari-stack/Book-Editorial-Tracker/releases). Extract the ZIP and open **Book Editorial Tracker.exe**. Enter your name for the edit history, then create a project or open a recent local or shared project.
+
+![Opening screen with recent projects](docs/screenshots/11-recent-projects.png)
 
 ## Storage choices
 
@@ -14,6 +20,12 @@ Both modes store tracker data in a portable project file. Source Word documents 
 Enter your editor label and create or open a project. Use Backups & intake to download a chapter-list template, review a CSV/JSON import, export backups, or scan an existing folder. Selected source documents/folders are never edited, renamed, moved, or deleted by the application.
 
 Scanning proposes chapter metadata for review. It does not automatically add stage history. Add stage records from chapter details after reviewing the relevant document. Open document and Show in folder require the source to be available on this computer.
+
+From **Chapters**, choose **Compile Manuscript** to export a Word document, Markdown file or ZIP of source files. You can select a Word .docx or .dotx template for page layout and matching styles. The compiler checks selected sources before saving and helps locate missing files.
+
+![Compiler identifying missing chapter sources](docs/screenshots/12-compiler-sources.png)
+
+Deleted chapters can be restored with **Undo deletion** while the project remains open. Multiple deletions can be undone in reverse order.
 
 ## Saving and recovery
 
@@ -30,5 +42,5 @@ The executable may be unsigned; signing and Windows trust behaviour must be repo
 ## More information
 
 - [User guide](docs/USER_GUIDE.md)
-- [MIT License](LICENSE)
+- [Source-available non-commercial licence](LICENSE)
 - [Changelog](CHANGELOG.md)

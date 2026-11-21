@@ -65,8 +65,11 @@ test('desktop preload sends Save As exports in the main-process payload shape', 
 test('desktop preload forwards bounded manuscript compiler requests', async () => {
   const { exposed, calls } = loadPreloadApi();
   const request = { format: 'docx', projectName: 'Book', chapters: [] };
+  const source = { sourceSha256: 'a'.repeat(64) };
 
+  await exposed.api.checkCompilerSources(request);
   await exposed.api.compileManuscript(request);
+  await exposed.api.locateCompilerSource(source);
 
-  assert.deepEqual(calls, [['compile-manuscript', request]]);
+  assert.deepEqual(calls, [['check-compiler-sources', request], ['compile-manuscript', request], ['locate-compiler-source', source]]);
 });

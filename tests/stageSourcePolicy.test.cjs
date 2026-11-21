@@ -9,6 +9,7 @@ const {
   resolveIndexedStageFile,
   resolveStageSourceFile,
   validateStageSourceRequest,
+  verifyLocatedStageFile,
   setTestDependencies,
   calculateSha256
 } = require('../electron/stage-source-policy.cjs');
@@ -87,6 +88,23 @@ const mockCreateReadStream = (p) => {
 setTestDependencies(mockRealpathSync, mockLstatSync, mockCreateReadStream);
 
 describe('stageSourcePolicy', () => {
+  it('locates a moved Word source only when its checksum matches', async () => {
+    const source = '/project/root/chapters/ch01.docx';
+    const expectedHash = crypto.createHash('sha256').update('test content').digest('hex');
+    assert.deepStrictEqual(await verifyLocatedStageFile(source, expectedHash.toUpperCase()), {
+      ok: true, filePath: '/real/project/root/chapters/ch01.docx',
+    });
+    const mismatch = await verifyLocatedStageFile(source, '0'.repeat(64));
+    assert.equal(mismatch.ok, false);
+    assert.match(mismatch.message, /differs from the recorded version/);
+  });
+
+  it('rejects links and non-Word files before locating a source', async () => {
+    const expectedHash = crypto.createHash('sha256').update('test content').digest('hex');
+    assert.equal((await verifyLocatedStageFile('/junction/outside/chapters/ch01.docx', expectedHash)).ok, false);
+    assert.equal((await verifyLocatedStageFile('/project/root/chapters/notdoc.txt', expectedHash)).ok, false);
+  });
+
   describe('validateStageSourceRequest', () => {
     it('rejects a malformed request or an action other than open or reveal', () => {
       assert.deepStrictEqual(
@@ -244,6 +262,19 @@ describe('stageSourcePolicy', () => {
   });
 
   describe('resolveStageSourceFile', () => {
+    it('verifies a project-relative document against the recorded hash when present', async () => {
+      const request = {
+        sourceRelativePath: 'chapters/ch01.docx',
+        selectedProjectRoot: '/project/root',
+        indexPath: path.join(__dirname, 'missing-stage-index-for-test.json'),
+      };
+      const expectedHash = crypto.createHash('sha256').update('test content').digest('hex');
+      assert.equal((await resolveStageSourceFile({ ...request, sourceSha256: expectedHash })).ok, true);
+      const changed = await resolveStageSourceFile({ ...request, sourceSha256: '0'.repeat(64) });
+      assert.equal(changed.ok, false);
+      assert.match(changed.message, /differs from the recorded version/);
+    });
+
     it('falls back to indexed hash when relative-path resolution fails', async () => {
       const relativeHash = crypto.createHash('sha256').update('content for fallback').digest('hex');
       const mockFsExistsSync = (p) => {

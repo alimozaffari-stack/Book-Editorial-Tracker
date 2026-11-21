@@ -82,6 +82,25 @@ test('LocalFileTrackerBackend creates, saves, reopens, edits, and saves syntheti
   assert.equal(JSON.parse(storedContents).projectRevision, 2);
 });
 
+test('bulk undo restores the entire group in order, preserves later edits and refuses ID conflicts', async () => {
+  const now = '2026-01-01T00:00:00.000Z';
+  const original = ['A', 'B', 'C'].map(id => inventoryChapter(id));
+  let contents = serializePortableProjectFile({ format: 'book-editorial-tracker-project', version: 1, projectRevision: 0,
+    savedAt: now, savedBy: 'tester', project: { name: 'Undo', generationId: 'g', startedAt: now, startedBy: 'tester', updatedAt: now },
+    chapters: original, activity: [] });
+  const backend = new LocalFileTrackerBackend({ fileToken: 'test', initialHash: 'initial', contents, editorLabel: 'tester',
+    fileApi: { saveProjectFile: async (_token, _hash, next) => { contents = next; return { ok: true, hash: 'next', message: 'saved' }; } } });
+  const entries = [0, 2].map(index => ({ chapter: original[index], index }));
+  await backend.deleteChapters(entries.map(({ chapter }) => chapter), 'tester');
+  await backend.saveChapter({ ...original[1], title: 'Later edit' }, 0, 'tester');
+  await assert.rejects(backend.restoreDeletedChapters(entries, 'other', 'tester'), /another project/);
+  await backend.restoreDeletedChapters(entries, 'g', 'tester');
+  assert.deepEqual(JSON.parse(contents).chapters.map((chapter: Chapter) => chapter.title), ['Title A', 'Later edit', 'Title C']);
+  const checkpoint = contents;
+  await assert.rejects(backend.restoreDeletedChapters(entries, 'g', 'tester'), /already uses/);
+  assert.equal(contents, checkpoint);
+});
+
 test('LocalFileTrackerBackend initializes a local project as one local mutation', async () => {
   const starter: ProjectState = { name: 'Draft project', generationId: 'g0', startedAt: '2026-01-01T00:00:00.000Z', startedBy: 'editor', updatedAt: '2026-01-01T00:00:00.000Z' };
   const file: PortableProjectFile = {

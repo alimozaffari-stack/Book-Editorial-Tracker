@@ -46,6 +46,25 @@ test('project-file policy returns opaque tokens only when choosing a file', asyn
   assert.equal(result.contents.includes(filePath), false);
 });
 
+test('recent projects survive restart, deduplicate, retain mode and handle a moved file', async () => {
+  const root = tempRoot();
+  const file = path.join(root, 'book.betp');
+  fs.writeFileSync(file, validContents('Recent'));
+  const policy = createProjectFilePolicy({ userDataPath: root });
+  policy.rememberProjectFileForTest(file);
+  const shared = policy.rememberSharedProjectFileForTest(file);
+  const local = policy.rememberProjectFileForTest(file);
+  const reopened = createProjectFilePolicy({ userDataPath: root });
+  assert.deepEqual(reopened.listRecentProjects(), [
+    { token: local, name: 'book.betp', mode: 'local' }, { token: shared, name: 'book.betp', mode: 'shared' },
+  ]);
+  assert.throws(() => reopened.openRecentProject(shared, 'local'), /shared-folder token/);
+  assert.equal(reopened.openRecentProject(shared, 'shared').contents, validContents('Recent'));
+  assert.equal(reopened.listRecentProjects()[0].mode, 'shared');
+  fs.renameSync(file, path.join(root, 'moved.betp'));
+  assert.throws(() => reopened.openRecentProject(local, 'local'), /current location/);
+});
+
 test('project-file policy writes through a sibling temporary file and replaces atomically', async () => {
   const root = tempRoot();
   const filePath = path.join(root, 'project.betp.json');

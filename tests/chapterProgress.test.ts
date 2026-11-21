@@ -18,6 +18,13 @@ test('prefers active history and its latest manuscript word count', () => {
   assert.equal(result.currentWordCount, 1200);
 });
 
+test('excludes blank legacy word counts and keeps a recorded zero', () => {
+  assert.equal(chapterProgress.deriveChapterProgress(chapter()).currentWordCount, undefined);
+  assert.equal(chapterProgress.deriveChapterProgress(chapter({ submittedWordCount: '  ' })).currentWordCount, undefined);
+  assert.equal(chapterProgress.deriveChapterProgress(chapter({ submittedWordCount: '0' })).currentWordCount, 0);
+  assert.equal(chapterProgress.deriveChapterProgress(chapter({ submittedWordCount: '1200' })).currentWordCount, 1200);
+});
+
 test('derives abstract presence from text despite an imported No status', () => {
   const api = chapterProgress as Record<string, unknown>;
   const deriveAbstractPresence = api.deriveAbstractPresence as ((value: Chapter) => unknown) | undefined;

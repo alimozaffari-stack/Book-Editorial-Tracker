@@ -83,6 +83,8 @@ export function deriveChapterProgress(chapter: Chapter): ChapterProgress {
   const currentStage = deriveCurrentStage(chapter);
   const records = (chapter.submissions ?? []).filter(record => record.state === 'active' && manuscriptStages.has(record.stage)).sort((a, b) => a.effectiveOn.localeCompare(b.effectiveOn));
   const latest = records.at(-1);
-  const currentWordCount = latest?.wordCount ?? latest?.calculatedWordCount ?? (Number.isFinite(Number(chapter.submittedWordCount)) ? Number(chapter.submittedWordCount) : undefined);
+  const recordedWordCount = String(chapter.submittedWordCount ?? '').trim();
+  const legacyWordCount = recordedWordCount ? Number(recordedWordCount) : NaN;
+  const currentWordCount = latest?.wordCount ?? latest?.calculatedWordCount ?? (Number.isFinite(legacyWordCount) ? legacyWordCount : undefined);
   return { currentStage, currentWordCount, discrepancies: findChapterDiscrepancies(chapter) };
 }

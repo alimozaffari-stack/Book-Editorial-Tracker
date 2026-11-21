@@ -24,6 +24,8 @@ interface CompileManuscriptRequest {
   projectName: string;
   includeAbstracts: boolean;
   includeMetadata: boolean;
+  template?: { fileName: string; bytes: Uint8Array };
+  legacyFolderToken?: string;
   chapters: CompileManuscriptChapter[];
 }
 
@@ -31,12 +33,22 @@ interface CompileManuscriptResult {
   cancelled: boolean;
   filePath?: string;
   includedChapters: number;
+  unavailableSource?: { chapterId: string; source: CompileManuscriptSource };
+  unavailableSources?: { chapterId: string; source: CompileManuscriptSource }[];
 }
+
+type LocateCompilerSourceResult =
+  | { status: 'located'; legacyFolderToken?: string }
+  | { status: 'cancelled' }
+  | { status: 'error'; message: string };
+
+interface RecentProject { token: string; name: string; folder?: string; mode: 'local' | 'shared' }
 
 interface Window {
   editorialTracker?: {
     saveLocalExport: (filename: string, contents: string) => Promise<{ cancelled: boolean; filePath?: string }>;
     compileManuscript: (request: CompileManuscriptRequest) => Promise<CompileManuscriptResult>;
+    locateCompilerSource: (request: Pick<CompileManuscriptSource, 'sourceRelativePath' | 'sourceSha256'>) => Promise<LocateCompilerSourceResult>;
     openFolderForFile: (filePath: string) => Promise<void>;
     selectDocx: () => Promise<SelectedDocx | null>;
     scanProjectFolder: () => Promise<ProjectFolderScan | null>;
@@ -44,6 +56,9 @@ interface Window {
     inspectProjectDocx: (relativePath: string) => Promise<SelectedDocx>;
     forgetProjectFolder: () => Promise<void>;
     openStageSource: (request: StageSourceRequest) => Promise<StageSourceResult>;
+    listRecentProjects: () => Promise<RecentProject[]>;
+    openRecentProject: (token: string, mode: RecentProject['mode']) => Promise<{ cancelled: boolean; contents: string; fileToken: string }>;
+    checkCompilerSources: (request: CompileManuscriptRequest) => Promise<CompileManuscriptResult>;
     chooseProjectFile: () => Promise<{ cancelled: boolean; contents?: string; fileToken?: string }>;
     chooseSharedProjectFile: () => Promise<{ cancelled: boolean; contents?: string; fileToken?: string }>;
     saveProjectFile: (fileToken: string, expectedHash: string, contents: string) => Promise<{ ok: boolean; hash?: string; message: string }>;

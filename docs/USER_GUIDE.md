@@ -7,7 +7,7 @@ The tracker stores editorial data. It does not copy, rename, edit, or delete you
 ## Contents
 
 1. [Before you begin](#before-you-begin)
-2. [Choose storage and open a project](#choose-storage-and-open-a-project)
+2. [Open or create a book project](#open-or-create-a-book-project)
 3. [Navigation and editing permission](#navigation-and-editing-permission)
 4. [Project and Help](#project-and-help)
 5. [Dashboard](#dashboard)
@@ -47,18 +47,18 @@ Most summary screens remain visible in read-only mode. Actions that change track
 
 In particular, the import controls in **Backups & intake** are hidden in read-only shared mode. This prevents two editors from importing or changing the same tracker at once.
 
-## Choose storage and open a project
+## Open or create a book project
 
-The opening screen asks for an editor label. This label identifies changes in the project; it is not an account unless you use the separate Firebase team mode.
+Enter **Your name for the edit history** to enable the project actions. The tracker records this name alongside your edits.
 
 ### Local project file
 
 Use this for a single editor working with one portable project file.
 
-1. Enter a local editor label.
-2. To begin, enter a new project name and select **Create local file**.
+1. Enter your name.
+2. To begin, enter a new project name and select **Create project**.
 3. Choose a save location when Windows asks.
-4. To continue an existing tracker, enter the editor label and select **Open local file**.
+4. To continue an existing tracker, select **Open local project**.
 5. Select the existing `.betp.json` project file.
 
 Only one copy should edit a local project file at a time.
@@ -67,7 +67,7 @@ Only one copy should edit a local project file at a time.
 
 Use this when the project file is in a folder synchronized or shared between editors, for example a shared drive. It is sequential editing, not live multi-user editing.
 
-1. Enter a shared editor label.
+1. Enter your name.
 2. Select **Open shared project file**.
 3. Choose the shared `.betp.json` file.
 4. If no other editor owns the lock, the project opens for editing.
@@ -75,13 +75,15 @@ Use this when the project file is in a folder synchronized or shared between edi
 
 The tracker creates a companion `.lock` file while an editor owns the project. Do not delete this file manually.
 
-### Firebase team mode
+### Recent projects
 
-The public beta can be configured against a Firebase project owned and operated by the user or team. It requires the team's own Firebase Authentication, Cloud Firestore, and Firebase configuration. The public portable release is not connected to the developer's private data.
+After entering your name, select a recent project on the opening screen to reopen it. The list shows whether each project uses local or shared mode. If a file has moved, use the relevant open button to select its current location.
+
+![Opening screen showing recent projects](screenshots/11-recent-projects.png)
 
 ## Navigation and editing permission
 
-The left sidebar contains these areas:
+The left sidebar contains these areas. In a narrow window, select **Menu** to reach them.
 
 - **Project & Help**
 - **Dashboard**
@@ -92,7 +94,7 @@ The left sidebar contains these areas:
 - **Activity**
 - **Backups & intake**
 
-The sidebar also has **Sign Out**. The top status area reports the most recent data refresh. If a refresh fails, select **Try again** before assuming that data has been lost.
+Use **Close project** in the sidebar to return to the opening screen. The top status area reports the most recent refresh. If a refresh fails, select **Try again**.
 
 Some actions appear only when the current project is editable. A read-only shared project can be reviewed safely, but cannot be changed, imported into, or used to create new records.
 
@@ -138,26 +140,9 @@ Starting a new project is not a remedy for a shared lock or an import problem. U
 
 The dashboard is the project overview. It derives its figures from the chapter records and active stage history.
 
-### Summary cards
+**Needs attention** groups workflow conflicts and imported metadata checks by chapter. Select a chapter title to open its record.
 
-- **Total Chapters**: number of chapter records in the tracker.
-- **Average Current Words**: average word count drawn from the current qualifying manuscript state.
-- **Current Volume Words**: total current-volume word count across chapters.
-- **Needs Attention**: count of workflow or imported-metadata checks requiring review.
-
-### Project banner
-
-When a project is open, the banner shows its name, generation identifier, and start date.
-
-### Stage distribution
-
-**Current Stage Distribution** shows one derived current stage for each chapter. It is a summary of the active stage history, not a second editable status field.
-
-**Current Production Stages** shows the count and relative frequency of those derived stages.
-
-### Workflow and data checks
-
-The dashboard can surface checks that need attention. Use the provided chapter link to open the relevant chapter rather than editing from the dashboard. Some imported metadata checks can be reconciled only in editable mode.
+**Editorial progress** shows the chapter count, recorded volume words, average words per counted chapter, and the number of chapters at each current stage.
 
 ## Chapters
 
@@ -176,11 +161,13 @@ Each row shows a chapter's:
 - submission location; and
 - feedback or revision link, where available.
 
-Select a chapter row or its open/edit action to open the chapter detail panel. In read-only mode, the same action opens the record without edit controls.
+Select a chapter title or its open/edit action to open the chapter detail panel. In read-only mode, the same action opens the record without edit controls.
 
-### Filtering and sorting
+The chapter ID, title, contributor and stage stay visible while you scroll horizontally. Use the left and right arrow keys with the table focused, or use **Columns** to choose which secondary fields appear. The tracker remembers your column choices while the app is open. Expand a chapter’s **items to review** to read the issue details.
 
-Use the page controls to filter and sort the chapter list. The filters affect the visible list only; they do not alter tracker data.
+### Finding a chapter
+
+Use **Find chapters** to search by ID, title or contributor.
 
 ### Add a chapter
 
@@ -194,7 +181,7 @@ Review the selected rows carefully: a bulk action changes every selected record.
 
 ### Delete chapters
 
-Deletion is available only when editing is permitted. Treat deletion as a controlled editorial action. Create a JSON backup first if the records may be needed later.
+After deleting selected chapters, choose **Undo deletion** to restore the whole group. You can undo several deletions, most recent first, while the project is open. Closing the project clears this history. Use a JSON backup for recovery across sessions.
 
 ### Compile manuscript
 
@@ -202,13 +189,19 @@ Deletion is available only when editing is permitted. Treat deletion as a contro
 
 1. Open **Chapters**.
 2. Select **Compile manuscript**.
-3. Choose one of the offered output formats.
-4. Select the eligible source stages to include.
-5. Optionally include chapter abstracts and chapter/source metadata.
-6. Run the compile action.
+3. Choose **Word document** for an editable DOCX. Select **Choose Word template** to use a local .docx or .dotx file for the output styles and page layout.
+4. Open **Source and content options** to change which manuscript stages can supply a document.
+5. In the same section, choose whether to include chapter abstracts and chapter/source metadata.
+6. Review the count and reasons for any omitted chapters, then use the save action. Its label shows the chapter count and export format.
 7. Use **Show saved file** to open the output folder.
 
-Only active, locally available source documents in the selected stages can contribute to the compiled file.
+The compiler checks the selected source files before enabling Save. If several are missing, it lists their chapters and filenames. It checks again when saving in case a file has moved.
+
+If a source has moved, use **Locate source file** in the compiler to choose the original Word document. The tracker checks that it matches the recorded version. For older sources stored only by relative path, use **Choose source folder** to confirm the folder for this export. Your template and export options stay selected while you locate the source.
+
+![Compiler showing missing sources](screenshots/12-compiler-sources.png)
+
+The Word export uses the template's styles and page settings and skips its sample body text. It preserves chapter content including tables, embedded images, lists, footnotes and endnotes. Chapter-specific styles and direct formatting can carry through. Use clean chapters and templates without review annotations or macros. Use **Source files** to export the original chapter files as a ZIP.
 
 ## Chapter detail and stage history
 

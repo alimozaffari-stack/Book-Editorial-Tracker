@@ -48,6 +48,25 @@ function calculateSha256(filePath) {
   });
 }
 
+async function verifyLocatedStageFile(filePath, expectedHash) {
+  if (!isSha256(expectedHash)) return { ok: false, message: 'This source has no valid recorded checksum.' };
+  if (path.extname(filePath).toLowerCase() !== '.docx') return { ok: false, message: 'Choose a .docx Word document.' };
+
+  try {
+    const stat = fsLstatSync(filePath);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 25 * 1024 * 1024) {
+      return { ok: false, message: 'Choose a regular .docx file up to 25 MiB.' };
+    }
+    const resolvedPath = fsRealpathSync(filePath);
+    if ((await calculateSha256(resolvedPath)) !== expectedHash.toLowerCase()) {
+      return { ok: false, message: 'This file differs from the recorded version. Choose the original file, or record the newer revision on the chapter.' };
+    }
+    return { ok: true, filePath: resolvedPath };
+  } catch {
+    return { ok: false, message: 'The selected file could not be read. Check that it is available on this computer.' };
+  }
+}
+
 function isPathSafe(relativePath) {
   if (!relativePath || typeof relativePath !== 'string') return false;
   
@@ -126,8 +145,14 @@ async function resolveStageSourceFile({
 
   if (hasRelativePath && selectedProjectRoot) {
     const relativeResult = resolveProjectStageFile(sourceRelativePath, selectedProjectRoot);
-    if (relativeResult.ok) return relativeResult;
-    relativeFailureMessage = relativeResult.message;
+    if (relativeResult.ok) {
+      if (!isSha256(sourceSha256)) return relativeResult;
+      const verified = await verifyLocatedStageFile(relativeResult.filePath, sourceSha256);
+      if (verified.ok) return verified;
+      relativeFailureMessage = verified.message;
+    } else {
+      relativeFailureMessage = relativeResult.message;
+    }
   }
 
   if (hasHash) {
@@ -173,7 +198,7 @@ async function resolveIndexedStageFile(sourceSha256, indexPath) {
     
     // Calculate current hash and compare
     const currentHash = await calculateSha256(filePath);
-    if (currentHash !== sourceSha256) {
+    if (currentHash !== sourceSha256.toLowerCase()) {
       return { ok: false, message: 'File content has changed since it was recorded' };
     }
     
@@ -210,6 +235,7 @@ module.exports = {
   resolveIndexedStageFile,
   resolveStageSourceFile,
   validateStageSourceRequest,
+  verifyLocatedStageFile,
   calculateSha256,
   setTestDependencies
 };

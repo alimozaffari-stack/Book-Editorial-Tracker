@@ -125,7 +125,7 @@ export function ProjectHelpView({
           {!canStartBlank && <p className="mt-2 text-sm text-amber-700">This tracker already contains chapters. A populated tracker must use the backup-confirmed reset flow in Stage 3 before starting blank.</p>}
           <div className="mt-3 flex flex-wrap gap-3">
             <button type="button" onClick={() => onChoose('import-csv-json')} disabled={saving} className="rounded-lg border px-4 py-2 text-sm">Import CSV/JSON</button>
-            <button type="button" onClick={() => onChoose('restore-json-backup')} disabled={saving} className="rounded-lg border px-4 py-2 text-sm">Restore JSON backup</button>
+            <button type="button" onClick={() => onChoose('restore-json-backup')} disabled={saving} className="rounded-lg border px-4 py-2 text-sm">Import chapters from backup</button>
             <button type="button" onClick={() => onChoose('scan-existing-folder')} disabled={saving} className="rounded-lg border px-4 py-2 text-sm">Scan an existing folder</button>
           </div>
           {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
